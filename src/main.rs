@@ -7,10 +7,10 @@ extern crate toml;
 
 mod mauveweasel;
 
-use mauveweasel::server::Server;
+use mauveweasel::server::MauveWeaselServer;
 
 fn main() {
     println!( "MauveWeasel Dynamic Content Engine" );
-
-    let server: Server = Server::new();
+    let server: MauveWeaselServer = MauveWeaselServer::new();
+    server.run();
 }
