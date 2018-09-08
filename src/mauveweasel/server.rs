@@ -1,19 +1,5 @@
-use std::fs::File;
-use std::io::Read;
-use toml;
+use mauveweasel::comment::Comment;
 
-pub struct MauveWeaselServer {
+pub fn run() {
 
-}
-
-impl MauveWeaselServer {
-    pub fn new() -> MauveWeaselServer {
-        MauveWeaselServer {
-
-        }
-    }
-
-    pub fn run( &self ) {
-
-    }
 }
