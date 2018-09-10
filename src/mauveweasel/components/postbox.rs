@@ -37,6 +37,8 @@ impl Postbox {
             let mut file = self.path.clone();
             file.push( format!( "{}.txt", Uuid::new_v4() ) );
             fs::write( file, result )?;
+        } else {
+            return Err( io::Error::new( io::ErrorKind::Other, "No request content!" ) )
         }
 
         Ok( "Success" )
