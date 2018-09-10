@@ -6,7 +6,7 @@ use std::path::PathBuf;
 use std::result::Result;
 use std::io;
 use std::fs;
-use sha3::{Digest, Sha3_256};
+use uuid::Uuid;
 
 pub struct Postbox {
     path: PathBuf
@@ -34,12 +34,8 @@ impl Postbox {
         }
 
         if result.len() > 0 {
-            let mut hasher = Sha3_256::default();
-            hasher.input( buffer.as_bytes() );
-            let filename = format!( "{:x}.txt", hasher.result() );
-
             let mut file = self.path.clone();
-            file.push( filename );
+            file.push( format!( "{}.txt", Uuid::new_v4() ) );
             fs::write( file, result )?;
         }
 
@@ -53,10 +49,11 @@ impl Handler for Postbox {
         for header in headers {
             if header.field.equiv( "Content-Type" ) && header.value == "application/x-www-form-urlencoded" {
                 let mut content = String::new();
-                request.as_reader().read_to_string( &mut content ).expect( "Failed to parse POST content" );
-                return match self.write_file( content ) {
-                    Ok( message ) => Response::from_string( message ),
-                    Err( message ) => Response::from_string( format!( "{}", message ) ).with_status_code( 500 )
+                if request.as_reader().read_to_string( &mut content ).is_ok() {
+                    return match self.write_file( content ) {
+                        Ok( message ) => Response::from_string( message ),
+                        Err( message ) => Response::from_string( format!( "{}", message ) ).with_status_code( 500 )
+                    }
                 }
             }
         }

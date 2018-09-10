@@ -3,7 +3,7 @@
 #[macro_use] extern crate serde_derive;
 extern crate toml;
 extern crate tiny_http;
-extern crate sha3;
+extern crate uuid;
 
 mod mauveweasel;
 use mauveweasel::server::DynamicContentServer;
