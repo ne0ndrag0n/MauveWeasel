@@ -1,7 +1,6 @@
-use mauveweasel::comment::Comment;
 use mauveweasel::options::Config;
 use mauveweasel::utility;
-use tiny_http::{Server, Request, Response};
+use tiny_http::{Server};
 use mauveweasel::router;
 use toml;
 

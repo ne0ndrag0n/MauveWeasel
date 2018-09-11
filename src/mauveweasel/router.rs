@@ -4,7 +4,7 @@ use mauveweasel::options::Config;
 use mauveweasel::components::postbox::Postbox;
 use mauveweasel::types::ServerResponse;
 
-fn route_post( request: &mut Request, config: &Config ) -> ServerResponse  {
+fn route_post( request: &mut Request, config: &Config ) -> ServerResponse {
     match request.url() {
         "/postbox" => Postbox::new( &config.postbox_directory() )
                                .expect( "Could not create a Postbox!" )

@@ -1,4 +1,4 @@
-use tiny_http::{Request, Response};
+use tiny_http::{Request};
 use mauveweasel::types::ServerResponse;
 
 pub trait Handler {
