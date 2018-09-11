@@ -2,7 +2,6 @@
 
 #[macro_use] extern crate serde_derive;
 extern crate toml;
-extern crate tiny_http;
 extern crate uuid;
 
 mod mauveweasel;

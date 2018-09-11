@@ -1,7 +1,5 @@
 use mauveweasel::options::Config;
 use mauveweasel::utility;
-use tiny_http::{Server};
-use mauveweasel::router;
 use toml;
 
 pub struct DynamicContentServer {
@@ -20,9 +18,6 @@ impl DynamicContentServer {
     }
 
     pub fn run( &self ) {
-        let server = Server::http( self.config.get_host() ).expect( "Could not create server" );
-        for request in server.incoming_requests() {
-            router::route( request, &self.config );
-        }
+
     }
 }
