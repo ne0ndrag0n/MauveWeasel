@@ -2,9 +2,9 @@ use tiny_http::{Request, Response,Method};
 use mauveweasel::handler::Handler;
 use mauveweasel::options::Config;
 use mauveweasel::components::postbox::Postbox;
-use std::io::Cursor;
+use mauveweasel::types::ServerResponse;
 
-fn route_post( request: &mut Request, config: &Config ) -> Response< Cursor < Vec < u8 > > >  {
+fn route_post( request: &mut Request, config: &Config ) -> ServerResponse  {
     match request.url() {
         "/postbox" => Postbox::new( &config.postbox_directory() )
                                .expect( "Could not create a Postbox!" )
@@ -13,7 +13,7 @@ fn route_post( request: &mut Request, config: &Config ) -> Response< Cursor < Ve
     }
 }
 
-fn route_error( code: u16 ) -> Response< Cursor < Vec < u8 > > >  {
+fn route_error( code: u16 ) -> ServerResponse {
     Response::from_string( "Error!" ).with_status_code( code )
 }
 

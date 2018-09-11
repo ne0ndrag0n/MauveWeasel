@@ -1,7 +1,7 @@
 use mauveweasel::handler::Handler;
+use mauveweasel::types::ServerResponse;
 use tiny_http::{Request, Response};
 use std::vec::Vec;
-use std::io::Cursor;
 use std::path::PathBuf;
 use std::result::Result;
 use std::io;
@@ -46,7 +46,7 @@ impl Postbox {
 }
 
 impl Handler for Postbox {
-    fn handle( self, request: &mut Request ) -> Response< Cursor < Vec < u8 > > > {
+    fn handle( self, request: &mut Request ) -> ServerResponse {
         let headers = Vec::from( request.headers() );
         for header in headers {
             if header.field.equiv( "Content-Type" ) && header.value == "application/x-www-form-urlencoded" {
