@@ -1,6 +1,8 @@
 #![allow(non_snake_case)]
 
 #[macro_use] extern crate serde_derive;
+extern crate hyper;
+#[macro_use] extern crate futures;
 extern crate toml;
 extern crate uuid;
 
