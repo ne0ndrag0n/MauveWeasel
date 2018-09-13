@@ -9,10 +9,11 @@ pub struct DynamicContentServer {
 }
 
 fn stream_to_string( stream: &mut TcpStream ) -> Result< String, &'static str > {
-    let mut buf = [ 0u8; 2048 ];
-    match stream.read( &mut buf ) {
-        Ok( _ ) => {
-            Ok( format!( "{}", String::from_utf8_lossy( &buf ) ) )
+    let mut buf = vec![];
+    match stream.read_to_end( &mut buf ) {
+        Ok( bytes ) => match String::from_utf8( buf ) {
+                Ok( string ) => Ok( string ),
+                Err( e ) => Err( "Failed to convert to utf8" )
         },
         Err( e ) => Err( "Failed to convert tcp stream to string" )
     }

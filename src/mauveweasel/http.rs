@@ -1,6 +1,7 @@
 use std::vec::Vec;
 
 pub enum Method {
+    Unknown,
     GET,
     POST,
     PATCH,
@@ -14,6 +15,10 @@ pub struct Request {
 
 impl Request {
     pub fn from_string( input: String ) -> Result< Request, &'static str > {
+        let mut result = Request {
+            method: Method::Unknown,
+            url: String::from( "" )
+        };
         let mut lines = input.lines();
         let http_request_header: Vec< &str > = match lines.next() {
             Some( result ) => result.split( ' ' ).collect(),
@@ -24,15 +29,16 @@ impl Request {
             return Err( "Malformed http header" )
         }
 
-        Ok( Request {
-            method: match http_request_header[ 0 ] {
-                "GET" => Method::GET,
-                "POST" => Method::POST,
-                "PATCH" => Method::PATCH,
-                "DELETE" => Method::DELETE,
-                _ => return Err( "Invalid method" )
-            },
-            url: String::from( http_request_header[ 1 ] )
-        } )
+        result.method = match http_request_header[ 0 ] {
+             "GET" => Method::GET,
+             "POST" => Method::POST,
+             "PATCH" => Method::PATCH,
+             "DELETE" => Method::DELETE,
+             _ => return Err( "Invalid method" )
+         };
+
+        result.url += http_request_header[ 1 ];
+
+        Ok( result )
     }
 }
