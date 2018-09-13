@@ -1,8 +1,10 @@
 use mauveweasel::options::Config;
 use mauveweasel::utility;
+use mauveweasel::http::Request;
 use toml;
 use std::net::{TcpStream,TcpListener};
 use std::io::Read;
+use std::io::Write;
 
 pub struct DynamicContentServer {
     config: Config
@@ -19,6 +21,13 @@ fn stream_to_string( stream: &mut TcpStream ) -> Result< String, &'static str > 
     }
 }
 
+fn build_request( stream: &mut TcpStream ) -> Result< Request, &'static str > {
+    match stream_to_string( stream ) {
+        Ok( result ) => Request::from_string( result ),
+        Err( message ) => Err( message )
+    }
+}
+
 impl DynamicContentServer {
 
     pub fn new() -> DynamicContentServer {
@@ -30,24 +39,21 @@ impl DynamicContentServer {
         result
     }
 
-    fn build_request( &self, stream: &mut TcpStream ) {
-        match stream_to_string( stream ) {
-            Ok( result ) => {
-
-            },
-            Err( message ) => eprintln!( "build_request failed: {}", message )
-        }
-    }
-
     pub fn run( &self ) {
         let listener = TcpListener::bind( self.config.get_host() ).expect( "Failed to set up a TcpListener!" );
 
         for stream in listener.incoming() {
             match stream {
                 Ok( mut stream ) => {
-                    self.build_request( &mut stream );
+                    match build_request( &mut stream ) {
+                        Ok( request ) => {
+                            request.__debug_printstring();
+                            stream.write( b"response" ).expect( "Response failed" );
+                        },
+                        Err( message ) => eprintln!( "Unable to connect: {}", message )
+                    }
                 },
-                Err( e ) => println!( "Unable to connect: {}", e )
+                Err( e ) => eprintln!( "Unable to connect: {}", e )
             }
         }
     }
