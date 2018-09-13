@@ -1,9 +1,21 @@
 use mauveweasel::options::Config;
 use mauveweasel::utility;
 use toml;
+use std::net::{TcpStream,TcpListener};
+use std::io::Read;
 
 pub struct DynamicContentServer {
     config: Config
+}
+
+fn stream_to_string( stream: &mut TcpStream ) -> Result< String, &'static str > {
+    let mut buf = [ 0u8; 2048 ];
+    match stream.read( &mut buf ) {
+        Ok( _ ) => {
+            Ok( format!( "{}", String::from_utf8_lossy( &buf ) ) )
+        },
+        Err( e ) => Err( "Failed to convert tcp stream to string" )
+    }
 }
 
 impl DynamicContentServer {
@@ -17,7 +29,25 @@ impl DynamicContentServer {
         result
     }
 
-    pub fn run( &self ) {
+    fn build_request( &self, stream: &mut TcpStream ) {
+        match stream_to_string( stream ) {
+            Ok( result ) => {
 
+            },
+            Err( message ) => eprintln!( "build_request failed: {}", message )
+        }
+    }
+
+    pub fn run( &self ) {
+        let listener = TcpListener::bind( self.config.get_host() ).expect( "Failed to set up a TcpListener!" );
+
+        for stream in listener.incoming() {
+            match stream {
+                Ok( mut stream ) => {
+                    self.build_request( &mut stream );
+                },
+                Err( e ) => println!( "Unable to connect: {}", e )
+            }
+        }
     }
 }
