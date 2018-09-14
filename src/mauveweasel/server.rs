@@ -1,6 +1,6 @@
 use mauveweasel::options::Config;
 use mauveweasel::utility;
-use mauveweasel::http::Request;
+use mauveweasel::http::{Request, Response};
 use toml;
 use std::net::{TcpListener};
 use std::io::Write;
@@ -28,7 +28,7 @@ impl DynamicContentServer {
                 Ok( mut stream ) => {
                     match Request::from_stream( &mut stream, self.config.max_request_size() ) {
                         Ok( request ) => {
-                            stream.write( b"response\n" ).expect( "Response failed" );
+                            stream.write( &Response::create( 404, "text/plain", "Not found" ).generate() ).expect( "Response failed" );
                         },
                         Err( message ) => println!( "Unable to connect: {}", message )
                     }

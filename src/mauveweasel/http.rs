@@ -96,3 +96,22 @@ impl Request {
     }
 
 }
+
+pub struct Response {
+    code: u16,
+    content_type: String,
+    body: String
+}
+
+impl Response {
+    pub fn create( code: u16, content_type: &str, body: &str ) -> Response {
+        Response { code, content_type: content_type.to_string(), body: body.to_string() }
+    }
+
+    pub fn generate( &self ) -> Vec<u8> {
+        Vec::from( format!(
+            "HTTP/1.1 {} \r\nContent-Type: {}\r\nContent-Length: {}\r\n\r\n{}",
+            self.code, self.content_type, self.body.len(), self.body
+        ).as_bytes() )
+    }
+}
