@@ -2,30 +2,11 @@ use mauveweasel::options::Config;
 use mauveweasel::utility;
 use mauveweasel::http::Request;
 use toml;
-use std::net::{TcpStream,TcpListener};
-use std::io::Read;
+use std::net::{TcpListener};
 use std::io::Write;
 
 pub struct DynamicContentServer {
     config: Config
-}
-
-fn stream_to_string( stream: &mut TcpStream ) -> Result< String, &'static str > {
-    let mut buf = vec![];
-    match stream.read_to_end( &mut buf ) {
-        Ok( bytes ) => match String::from_utf8( buf ) {
-                Ok( string ) => Ok( string ),
-                Err( e ) => Err( "Failed to convert to utf8" )
-        },
-        Err( e ) => Err( "Failed to convert tcp stream to string" )
-    }
-}
-
-fn build_request( stream: &mut TcpStream ) -> Result< Request, &'static str > {
-    match stream_to_string( stream ) {
-        Ok( result ) => Request::from_string( result ),
-        Err( message ) => Err( message )
-    }
 }
 
 impl DynamicContentServer {
@@ -45,15 +26,14 @@ impl DynamicContentServer {
         for stream in listener.incoming() {
             match stream {
                 Ok( mut stream ) => {
-                    match build_request( &mut stream ) {
+                    match Request::from_stream( &mut stream, self.config.max_request_size() ) {
                         Ok( request ) => {
-                            request.__debug_printstring();
-                            stream.write( b"response" ).expect( "Response failed" );
+                            stream.write( b"response\n" ).expect( "Response failed" );
                         },
-                        Err( message ) => eprintln!( "Unable to connect: {}", message )
+                        Err( message ) => println!( "Unable to connect: {}", message )
                     }
                 },
-                Err( e ) => eprintln!( "Unable to connect: {}", e )
+                Err( e ) => println!( "Unable to connect: {}", e )
             }
         }
     }

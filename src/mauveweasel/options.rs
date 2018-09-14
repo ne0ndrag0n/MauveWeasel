@@ -2,7 +2,8 @@
 pub struct Config {
     ip: Option< String >,
     port: Option< u16 >,
-    postbox_directory: Option< String >
+    postbox_directory: Option< String >,
+    max_request_size: Option< u64 >
 }
 
 impl Config {
@@ -25,6 +26,13 @@ impl Config {
         match self.postbox_directory {
             Some( ref val ) => val.clone(),
             None => String::from( "./postbox" )
+        }
+    }
+
+    pub fn max_request_size( &self ) -> u64 {
+        match self.max_request_size {
+            Some( val ) => val,
+            None => 4096
         }
     }
 
