@@ -1,5 +1,6 @@
 use std::net::TcpStream;
 use std::io::Read;
+use std::collections::HashMap;
 use std::io::{ BufReader, BufRead };
 
 pub enum Method {
@@ -13,7 +14,8 @@ pub enum Method {
 pub struct Request {
     method: Method,
     url: String,
-    raw: String
+    raw_headers: HashMap< String, String >,
+    content: String
 }
 
 impl Request {
@@ -41,7 +43,8 @@ impl Request {
                  _ => return Err( "Invalid method" )
              },
              url: request_line_tokens[ 1 ].to_string(),
-             raw: String::new()
+             raw_headers: HashMap::new(),
+             content: String::new()
         };
 
         // Read remaining headers
@@ -52,7 +55,7 @@ impl Request {
             let mut option_line = match String::from_utf8( option_buffer ) {
                 Ok( result ) => result,
                 Err( _ ) => {
-                    eprintln!( "Could not read a header!" );
+                    println!( "Could not read a header!" );
                     continue;
                 }
             };
@@ -66,18 +69,28 @@ impl Request {
             if option_line_tokens.len() == 2 {
                 match option_line_tokens[ 0 ].to_lowercase().as_str() {
                     "content-length" => {
-                        content_length = match option_line_tokens[ 1 ].trim().parse::< u16 >() {
+                        content_length = match option_line_tokens[ 1 ].trim().parse::< usize >() {
                             Ok( val ) => val,
                             Err( _ ) => { println!( "Invalid value for Content-Length header!" ); 0 }
                         };
                     },
-                    _ => {}
+                    _ => { result.raw_headers.insert( option_line_tokens[ 0 ].trim().to_string(), option_line_tokens[ 1 ].trim().to_string() ); }
                 };
             }
         }
 
-        // Read content body
-        // TODO
+        if content_length > 0 {
+            let mut buffer = vec![ 0u8; content_length ];
+            match take.read_exact( &mut buffer ) {
+                Ok( _ ) => {
+                    match String::from_utf8( buffer ) {
+                        Ok( r ) => { result.content = r; },
+                        Err( _ ) => { println!( "Couldn't read content into utf8" ); }
+                    }
+                },
+                Err( _ ) => { println!( "Couldn't read content" ); }
+            };
+        }
 
         Ok( result )
     }
