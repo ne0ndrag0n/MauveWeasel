@@ -3,7 +3,8 @@ pub struct Config {
     ip: Option< String >,
     port: Option< u16 >,
     postbox_directory: Option< String >,
-    max_request_size: Option< u64 >
+    max_request_size: Option< u64 >,
+    templates_directory: Option< String >
 }
 
 impl Config {
@@ -33,6 +34,13 @@ impl Config {
         match self.max_request_size {
             Some( val ) => val,
             None => 4096
+        }
+    }
+
+    pub fn templates_directory( &self ) -> &str {
+        match self.postbox_directory {
+            Some( ref val ) => &val,
+            None => "./templates"
         }
     }
 

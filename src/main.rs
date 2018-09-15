@@ -1,9 +1,11 @@
 #![allow(non_snake_case)]
 
 #[macro_use] extern crate serde_derive;
+#[macro_use] extern crate serde_json;
 extern crate toml;
 extern crate uuid;
 extern crate serde_urlencoded;
+extern crate handlebars;
 
 mod mauveweasel;
 use mauveweasel::server::DynamicContentServer;

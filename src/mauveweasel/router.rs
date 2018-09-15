@@ -1,13 +1,13 @@
-use mauveweasel::options::Config;
+use mauveweasel::server::DynamicContentServer;
 use mauveweasel::components::postbox::Postbox;
 use mauveweasel::http::{Method, Request,Response};
 
-pub fn route( request: Request, config: &Config ) -> Response {
+pub fn route( request: Request, server: &DynamicContentServer ) -> Response {
     match ( request.method(), request.url() ) {
         ( Method::GET, "/status" ) => Response::create( 200, "text/plain", "up" ),
         ( Method::POST, "/postbox" ) => match request.raw_headers().get( "content-type" ) {
             Some( value ) => match value.as_str() {
-                "application/x-www-form-urlencoded" => match Postbox::new( config.postbox_directory() ) {
+                "application/x-www-form-urlencoded" => match Postbox::new( server.config().postbox_directory() ) {
                     Ok( postbox ) => match postbox.write_file( request.content() ) {
                         Ok( message ) => {
                             let mut response = Response::create( 303, "text/plain", "" );
