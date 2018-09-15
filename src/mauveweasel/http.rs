@@ -28,6 +28,14 @@ impl Request {
         self.url.as_str()
     }
 
+    pub fn raw_headers( &self ) -> &HashMap< String, String > {
+        &self.raw_headers
+    }
+
+    pub fn content( &self ) -> String {
+        self.content.clone()
+    }
+
     pub fn from_stream( stream: &mut TcpStream, max_request_size: u64 ) -> Result< Request, &'static str > {
         let mut header_buffer: Vec< u8 > = vec![];
         let reader = BufReader::new( stream );
@@ -83,7 +91,7 @@ impl Request {
                             Err( _ ) => { println!( "Invalid value for Content-Length header!" ); 0 }
                         };
                     },
-                    _ => { result.raw_headers.insert( option_line_tokens[ 0 ].trim().to_string(), option_line_tokens[ 1 ].trim().to_string() ); }
+                    _ => { result.raw_headers.insert( option_line_tokens[ 0 ].to_lowercase().trim().to_string(), option_line_tokens[ 1 ].trim().to_string() ); }
                 };
             }
         }

@@ -8,10 +8,10 @@ pub struct Config {
 
 impl Config {
 
-    pub fn ip( &self ) -> String {
+    pub fn ip( &self ) -> &str {
         match self.ip {
-            Some( ref val ) => val.clone(),
-            None => String::from( "127.0.0.1" )
+            Some( ref val ) => &val,
+            None => "127.0.0.1"
         }
     }
 
@@ -22,10 +22,10 @@ impl Config {
         }
     }
 
-    pub fn postbox_directory( &self ) -> String {
+    pub fn postbox_directory( &self ) -> &str {
         match self.postbox_directory {
-            Some( ref val ) => val.clone(),
-            None => String::from( "./postbox" )
+            Some( ref val ) => &val,
+            None => "./postbox"
         }
     }
 
@@ -37,7 +37,7 @@ impl Config {
     }
 
     pub fn get_host( &self ) -> String {
-        self.ip() + ":" + self.port().to_string().as_str()
+        self.ip().to_string() + ":" + self.port().to_string().as_str()
     }
 
 }

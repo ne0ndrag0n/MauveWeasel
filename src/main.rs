@@ -3,6 +3,7 @@
 #[macro_use] extern crate serde_derive;
 extern crate toml;
 extern crate uuid;
+extern crate serde_urlencoded;
 
 mod mauveweasel;
 use mauveweasel::server::DynamicContentServer;
