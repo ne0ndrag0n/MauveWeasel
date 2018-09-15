@@ -14,7 +14,7 @@ pub struct Postbox {
 struct PostboxMessage {
     pub name: String,
     pub comment: String,
-    pub honeypot: String
+    pub email: String
 }
 
 impl Postbox {
@@ -35,12 +35,12 @@ impl Postbox {
         if message.name == "" { return Err( io::Error::new( io::ErrorKind::Other, "Missing field: Name" ) ); }
         if message.comment == "" { return Err( io::Error::new( io::ErrorKind::Other, "Missing field: Comment" ) ); }
 
-        if message.honeypot == "" {
+        if message.email == "" {
             let mut file = self.path.clone();
             file.push( format!( "{}.txt", Uuid::new_v4() ) );
             fs::write( file, format!( "Name: {}\nComment: {}\n", message.name, message.comment ) )?;
         } else {
-            println!( "Postbox silently failed spam honeypot test with content {}", message.honeypot );
+            println!( "Postbox silently failed spam honeypot test with content {}", message.email );
         }
 
         Ok( "Success" )

@@ -117,18 +117,34 @@ impl Request {
 pub struct Response {
     code: u16,
     content_type: String,
+    redirect: String,
     body: String
 }
 
 impl Response {
+    pub fn redirect( &self ) -> &str {
+        &self.redirect
+    }
+
+    pub fn set_redirect( &mut self, path: &str ) {
+        self.redirect = path.to_string();
+    }
+
     pub fn create( code: u16, content_type: &str, body: &str ) -> Response {
-        Response { code, content_type: content_type.to_string(), body: body.to_string() }
+        Response { code, content_type: content_type.to_string(), redirect: String::new(), body: body.to_string() }
     }
 
     pub fn generate( &self ) -> Vec<u8> {
+        let mut more_headers = String::new();
+        if self.redirect != "" {
+            more_headers += &format!( "Location: {}\r\n", self.redirect );
+        }
+
         Vec::from( format!(
-            "HTTP/1.1 {} \r\nContent-Type: {}\r\nContent-Length: {}\r\n\r\n{}",
-            self.code, self.content_type, self.body.len(), self.body
+            "HTTP/1.1 {} \r\nContent-Type: {}\r\nContent-Length: {}\r\n{}\r\n{}",
+            self.code, self.content_type, self.body.len(),
+            more_headers,
+            self.body
         ).as_bytes() )
     }
 }

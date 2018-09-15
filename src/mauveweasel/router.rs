@@ -9,7 +9,11 @@ pub fn route( request: Request, config: &Config ) -> Response {
             Some( value ) => match value.as_str() {
                 "application/x-www-form-urlencoded" => match Postbox::new( config.postbox_directory() ) {
                     Ok( postbox ) => match postbox.write_file( request.content() ) {
-                        Ok( message ) => Response::create( 200, "text/plain", message ),
+                        Ok( message ) => {
+                            let mut response = Response::create( 303, "text/plain", "" );
+                            response.set_redirect( "https://www.ne0ndrag0n.com/" );
+                            response
+                        },
                         Err( error ) => Response::create( 500, "text/plain", &format!( "Error: {}", error ) )
                     },
                     Err( message ) => Response::create( 500, "text/plain", message )
