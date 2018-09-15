@@ -3,6 +3,7 @@ use std::io::Read;
 use std::collections::HashMap;
 use std::io::{ BufReader, BufRead };
 
+#[derive(Copy, Clone)]
 pub enum Method {
     Unknown,
     GET,
@@ -19,6 +20,14 @@ pub struct Request {
 }
 
 impl Request {
+    pub fn method( &self ) -> Method {
+        self.method
+    }
+
+    pub fn url( &self ) -> &str {
+        self.url.as_str()
+    }
+
     pub fn from_stream( stream: &mut TcpStream, max_request_size: u64 ) -> Result< Request, &'static str > {
         let mut header_buffer: Vec< u8 > = vec![];
         let reader = BufReader::new( stream );
