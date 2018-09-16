@@ -15,6 +15,7 @@ pub enum Method {
 pub struct Request {
     method: Method,
     url: String,
+    query_string: String,
     raw_headers: HashMap< String, String >,
     content: String
 }
@@ -26,6 +27,10 @@ impl Request {
 
     pub fn url( &self ) -> &str {
         self.url.as_str()
+    }
+
+    pub fn query_string( &self ) -> &str {
+        &self.query_string
     }
 
     pub fn raw_headers( &self ) -> &HashMap< String, String > {
@@ -51,6 +56,9 @@ impl Request {
             return Err( "Error parsing header" )
         }
 
+        // Query string parsing
+        let url_tokens: Vec< &str > = request_line_tokens[ 1 ].splitn( 2, '?' ).collect();
+
         let mut result = Request {
             method: match request_line_tokens[ 0 ] {
                  "GET" => Method::GET,
@@ -59,7 +67,8 @@ impl Request {
                  "DELETE" => Method::DELETE,
                  _ => return Err( "Invalid method" )
              },
-             url: request_line_tokens[ 1 ].to_string(),
+             url: if url_tokens.len() > 0 { url_tokens[ 0 ].to_string() } else { String::new() },
+             query_string: if url_tokens.len() > 1 { url_tokens[ 1 ].to_string() } else { String::new() },
              raw_headers: HashMap::new(),
              content: String::new()
         };

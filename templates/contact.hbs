@@ -1,0 +1,115 @@
+<!doctype html>
+<html class="no-js" lang="">
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <title>ne0ndrag0n - Contact</title>
+    <meta property="og:title" content="ne0ndrag0n - Contact">
+    <meta property="og:type" content="website">
+    <meta property="og:image" content="https://www.ne0ndrag0n.com/icon.png">
+    <meta property="og:url" content="https://www.ne0ndrag0n.com/contact.html">
+    <meta property="og:description" content="Questions? Comments? Write to ne0ndrag0n here.">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+    <link rel="icon" href="favicon.ico" type="image/x-icon" />
+    <link rel="shortcut icon" href="favicon.ico" type="image/x-icon" />
+    <link rel="apple-touch-icon" href="icon.png">
+
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.2.0/css/all.css" integrity="sha384-hWVjflwFxL6sNzntih27bfxkr27PmbbK/iSvJ+a4+0owXq79v+lsFkW54bOGbiDQ" crossorigin="anonymous">
+    <link rel="stylesheet" href="/css/normalize.css">
+    <link rel="stylesheet" href="/css/main.css">
+    <link rel="stylesheet" href="/css/hover-tricks.css">
+    <link rel="stylesheet" href="/css/controls.css">
+
+    <style>
+        main {
+            justify-items: center;
+        }
+
+        main div {
+            display: grid;
+            width: 85%;
+        }
+
+        main div form {
+            display: grid;
+            grid-gap: 1em;
+        }
+
+        main div h1 {
+            border-top: 3px solid white;
+            padding-top: 0.75rem;
+        }
+
+        main div h3{{#if validation_errors}}, .validation-failed ul{{/if}} {
+            margin-top: 0;
+        }
+        {{#if validation_errors}}
+
+        main div .validation-failed {
+            color: red;
+        }
+
+        main div .validation-failed ul li {
+            margin: 0.33em;
+        }
+        {{/if}}
+
+        form input, textarea {
+            width: calc( 100% - 7px );
+
+            padding: 3px;
+        }
+
+        form textarea {
+            resize: none;
+            height: 300px;
+        }
+
+        @media only screen and (max-width: 600px) {
+            main div {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <header>
+        <h1><a class="spectrum" href="/">ne0ndrag0n</a></h1>
+        <h1>Contact</h1>
+    </header>
+
+    <main>
+        <div>
+            <h1>Give Feedback</h1>
+            <h3>Send your comments or concerns here.</h3>
+            {{#if validation_errors}}
+            <div class="validation-failed">
+              <ul>
+                {{#each validation_errors}}
+                <li>{{ this }}</li>
+                {{/each}}
+              </ul>
+            </div>
+            {{/if}}
+            <form action="/d/postbox" method="post">
+                <input type="text" name="name" placeholder="Name">
+                <textarea name="comment" placeholder="Comment"></textarea>
+                <span>Leave this clear to avoid being flagged as an automated submission.</span>
+                <input type="text" name="email">
+                <button class="hover-green" type="submit">Submit</button>
+            </form>
+        </div>
+    </main>
+
+    <footer>
+        <span>(c) 2018 ne0ndrag0n. Perpetually under construction.</span>
+    </footer>
+
+</body>
+
+</html>

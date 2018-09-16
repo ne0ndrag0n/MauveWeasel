@@ -1,10 +1,22 @@
 use mauveweasel::server::DynamicContentServer;
 use mauveweasel::components::postbox::Postbox;
+use mauveweasel::components::contactform;
 use mauveweasel::http::{Method, Request,Response};
 
 pub fn route( request: Request, server: &DynamicContentServer ) -> Response {
     match ( request.method(), request.url() ) {
         ( Method::GET, "/status" ) => Response::create( 200, "text/plain", "up" ),
+        ( Method::GET, "/contact" ) =>
+        match server.templates()
+            .render(
+                "contact",
+                &json!( {
+                    "validation_errors": contactform::get_validation( request.query_string() )
+                } )
+            ) {
+            Ok( string ) => Response::create( 200, "text/html", &string ),
+            Err( string ) => Response::create( 500, "text/plain", &format!( "error: {}", string ) )
+        },
         ( Method::POST, "/postbox" ) => match request.raw_headers().get( "content-type" ) {
             Some( value ) => match value.as_str() {
                 "application/x-www-form-urlencoded" => match Postbox::new( server.config().postbox_directory() ) {

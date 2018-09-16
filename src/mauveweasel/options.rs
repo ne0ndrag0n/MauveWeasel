@@ -38,7 +38,7 @@ impl Config {
     }
 
     pub fn templates_directory( &self ) -> &str {
-        match self.postbox_directory {
+        match self.templates_directory {
             Some( ref val ) => &val,
             None => "./templates"
         }
