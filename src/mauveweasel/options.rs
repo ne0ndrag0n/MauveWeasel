@@ -4,7 +4,8 @@ pub struct Config {
     port: Option< u16 >,
     postbox_directory: Option< String >,
     max_request_size: Option< u64 >,
-    templates_directory: Option< String >
+    templates_directory: Option< String >,
+    reverse_proxy_prefix: Option< String >
 }
 
 impl Config {
@@ -41,6 +42,13 @@ impl Config {
         match self.templates_directory {
             Some( ref val ) => &val,
             None => "./templates"
+        }
+    }
+
+    pub fn reverse_proxy_prefix( &self ) -> &str {
+        match self.reverse_proxy_prefix {
+            Some( ref val ) => &val,
+            None => "/d"
         }
     }
 

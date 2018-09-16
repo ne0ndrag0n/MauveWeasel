@@ -6,8 +6,16 @@ use std::fs;
 use uuid::Uuid;
 use serde_urlencoded;
 
+pub enum PostboxError {
+    MissingName,
+    MissingComment,
+    BadPath,
+    BadParse
+}
+
 pub struct Postbox {
-    path: PathBuf
+    path: PathBuf,
+    message: PostboxMessage
 }
 
 #[derive(Deserialize)]
@@ -18,29 +26,30 @@ struct PostboxMessage {
 }
 
 impl Postbox {
-    pub fn new( path: &str ) -> Result< Postbox, &'static str > {
+    pub fn new( path: &str, buffer: &str ) -> Result< Postbox, PostboxError > {
         let path = PathBuf::from( path );
-        match path.is_dir() {
-            true => Ok( Postbox { path } ),
-            false => Err( "Invalid path for postbox" )
+        if !path.is_dir() {
+            return Err( PostboxError::BadPath )
         }
-    }
 
-    pub fn write_file( &self, buffer: String ) -> io::Result< &str > {
-        let message: PostboxMessage = match serde_urlencoded::from_str( &buffer ) {
+        let message: PostboxMessage = match serde_urlencoded::from_str( buffer ) {
             Ok( message ) => message,
-            Err( _ ) => return Err( io::Error::new( io::ErrorKind::Other, "Can't parse x-www-url-formencoded" ) )
+            Err( _ ) => return Err( PostboxError::BadParse )
         };
 
-        if message.name == "" { return Err( io::Error::new( io::ErrorKind::Other, "Missing field: Name" ) ); }
-        if message.comment == "" { return Err( io::Error::new( io::ErrorKind::Other, "Missing field: Comment" ) ); }
+        if message.name == "" { return Err( PostboxError::MissingName ) }
+        if message.comment == "" { return Err( PostboxError::MissingComment ) }
 
-        if message.email == "" {
+        Ok( Postbox { path, message } )
+    }
+
+    pub fn write_file( &self ) -> io::Result< &str > {
+        if self.message.email == "" {
             let mut file = self.path.clone();
             file.push( format!( "{}.txt", Uuid::new_v4() ) );
-            fs::write( file, format!( "Name: {}\nComment: {}\n", message.name, message.comment ) )?;
+            fs::write( file, format!( "Name: {}\nComment: {}\n", self.message.name, self.message.comment ) )?;
         } else {
-            println!( "Postbox silently failed spam honeypot test with content {}", message.email );
+            println!( "Postbox silently failed spam honeypot test with content {}", self.message.email );
         }
 
         Ok( "Success" )

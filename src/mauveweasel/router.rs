@@ -1,4 +1,5 @@
 use mauveweasel::server::DynamicContentServer;
+use mauveweasel::components::postbox::PostboxError;
 use mauveweasel::components::postbox::Postbox;
 use mauveweasel::components::contactform;
 use mauveweasel::http::{Method, Request,Response};
@@ -19,16 +20,17 @@ pub fn route( request: Request, server: &DynamicContentServer ) -> Response {
         },
         ( Method::POST, "/postbox" ) => match request.raw_headers().get( "content-type" ) {
             Some( value ) => match value.as_str() {
-                "application/x-www-form-urlencoded" => match Postbox::new( server.config().postbox_directory() ) {
-                    Ok( postbox ) => match postbox.write_file( request.content() ) {
-                        Ok( message ) => {
-                            let mut response = Response::create( 303, "text/plain", "" );
-                            response.set_redirect( "https://www.ne0ndrag0n.com/" );
-                            response
-                        },
-                        Err( error ) => Response::create( 500, "text/plain", &format!( "Error: {}", error ) )
+                "application/x-www-form-urlencoded" => match Postbox::new( server.config().postbox_directory(), &request.content() ) {
+                    Ok( postbox ) => match postbox.write_file() {
+                        Ok( _ ) => Response::create_and_set_redirect( 303, "/" ),
+                        Err( _ ) => Response::create( 500, "text/plain", "Internal server error: Could not write postbox file." ),
                     },
-                    Err( message ) => Response::create( 500, "text/plain", message )
+                    Err( postbox_error ) => match postbox_error {
+                        PostboxError::MissingName => Response::create_and_set_redirect( 303, &( String::from( server.config().reverse_proxy_prefix() ) + "/contact?name_valid=false" ) ),
+                        PostboxError::MissingComment => Response::create_and_set_redirect( 303, &( String::from( server.config().reverse_proxy_prefix() ) + "/contact?comment_valid=false" ) ),
+                        PostboxError::BadPath => Response::create( 500, "text/plain", "Internal server error: bad postbox path." ),
+                        PostboxError::BadParse => Response::create( 500, "text/plain", "Internal server error: Incorrect postbox format." )
+                    }
                 },
                 _ => Response::create( 400, "text/plain", "Incorrect content-type" )
             },

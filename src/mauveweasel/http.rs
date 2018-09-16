@@ -143,6 +143,10 @@ impl Response {
         Response { code, content_type: content_type.to_string(), redirect: String::new(), body: body.to_string() }
     }
 
+    pub fn create_and_set_redirect( code: u16, redirect: &str ) -> Response {
+        Response { code, content_type: "text/plain".to_string(), redirect: redirect.to_string(), body: String::new() }
+    }
+
     pub fn generate( &self ) -> Vec<u8> {
         let mut more_headers = String::new();
         if self.redirect != "" {
