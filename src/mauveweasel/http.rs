@@ -51,6 +51,7 @@ impl Request {
             Ok( result ) => result,
             Err( _ ) => return Err( "Header could not be converted to UTF-8" )
         };
+        println!( "{}", request_line );
         let request_line_tokens: Vec< &str > = request_line.trim().split( ' ' ).collect();
         if request_line_tokens.len() != 3 || request_line_tokens[ 2 ] != "HTTP/1.1" {
             return Err( "Error parsing header" )
