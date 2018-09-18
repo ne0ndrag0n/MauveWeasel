@@ -5,7 +5,8 @@ pub struct Config {
     postbox_directory: Option< String >,
     max_request_size: Option< u64 >,
     templates_directory: Option< String >,
-    reverse_proxy_prefix: Option< String >
+    reverse_proxy_prefix: Option< String >,
+    cookiejar_directory: Option< String >
 }
 
 impl Config {
@@ -49,6 +50,13 @@ impl Config {
         match self.reverse_proxy_prefix {
             Some( ref val ) => &val,
             None => "/d"
+        }
+    }
+
+    pub fn cookiejar_directory( &self ) -> &str {
+        match self.cookiejar_directory {
+            Some( ref val ) => &val,
+            None => "./cookiejar"
         }
     }
 

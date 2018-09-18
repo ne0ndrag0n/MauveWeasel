@@ -4,6 +4,7 @@ version = "0.1.0"
 authors = ["ne0ndrag0n <ne0ndrag0n@users.noreply.github.com>"]
 
 [dependencies]
+bincode = "1.0.1"
 toml = "0.4"
 bcrypt = "0.2"
 serde = "1.0"

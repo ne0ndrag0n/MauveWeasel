@@ -3,8 +3,11 @@ use std::path::PathBuf;
 use std::result::Result;
 use std::io;
 use std::fs;
+use mauveweasel::cookie;
+use mauveweasel::cookie::Cookie;
 use uuid::Uuid;
 use serde_urlencoded;
+use bincode::{serialize,deserialize};
 
 pub enum PostboxError {
     MissingName,
@@ -18,11 +21,25 @@ pub struct Postbox {
     message: PostboxMessage
 }
 
-#[derive(Deserialize)]
+#[derive(Clone,Serialize,Deserialize)]
 struct PostboxMessage {
     pub name: String,
     pub comment: String,
     pub email: String
+}
+
+#[derive(Serialize,Deserialize)]
+struct ValidationCookie {
+   id: String,
+   contents: PostboxMessage
+}
+
+impl Cookie for ValidationCookie {
+   fn name( &self ) -> &str { "postbox-validation-cookie" }
+   fn value( &self ) -> &str { &self.id }
+   fn save( &self ) {
+
+   }
 }
 
 impl Postbox {
@@ -47,7 +64,7 @@ impl Postbox {
         if self.message.email == "" {
             let mut file = self.path.clone();
             file.push( format!( "{}.txt", Uuid::new_v4() ) );
-            fs::write( file, format!( "Name: {}\nComment: {}\n", self.message.name, self.message.comment ) )?;
+            fs::write( file, format!( "Name: {}\n\n{}", self.message.name, self.message.comment ) )?;
         } else {
             println!( "Postbox silently failed spam honeypot test with content {}", self.message.email );
         }
