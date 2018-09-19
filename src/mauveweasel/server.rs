@@ -1,6 +1,6 @@
 use mauveweasel::options::Config;
 use mauveweasel::utility;
-use mauveweasel::http::{Request, Response};
+use mauveweasel::http::Request;
 use mauveweasel::router;
 use toml;
 use std::net::{TcpListener};

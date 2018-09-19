@@ -2,10 +2,11 @@ use std::net::TcpStream;
 use std::io::Read;
 use std::collections::HashMap;
 use std::io::{ BufReader, BufRead };
+use mauveweasel::cookie::Cookie;
+use chrono::Duration;
 
 #[derive(Copy, Clone)]
 pub enum Method {
-    Unknown,
     GET,
     POST,
     PATCH,
@@ -128,7 +129,8 @@ pub struct Response {
     code: u16,
     content_type: String,
     redirect: String,
-    body: String
+    body: String,
+    cookies: Vec< Box< Cookie > >
 }
 
 impl Response {
@@ -140,24 +142,44 @@ impl Response {
         self.redirect = path.to_string();
     }
 
+    pub fn set_cookie( &mut self, cookie: Box< Cookie > ) {
+        self.cookies.push( cookie );
+    }
+
     pub fn create( code: u16, content_type: &str, body: &str ) -> Response {
-        Response { code, content_type: content_type.to_string(), redirect: String::new(), body: body.to_string() }
+        Response { code, content_type: content_type.to_string(), redirect: String::new(), body: body.to_string(), cookies: Vec::new() }
     }
 
     pub fn create_and_set_redirect( code: u16, redirect: &str ) -> Response {
-        Response { code, content_type: "text/plain".to_string(), redirect: redirect.to_string(), body: String::new() }
+        Response { code, content_type: "text/plain".to_string(), redirect: redirect.to_string(), body: String::new(), cookies: Vec::new() }
     }
 
-    pub fn generate( &self ) -> Vec<u8> {
+    fn generate_headers( &self ) -> String {
         let mut more_headers = String::new();
         if self.redirect != "" {
             more_headers += &format!( "Location: {}\r\n", self.redirect );
         }
 
+        for boxed_cookie in &self.cookies {
+            more_headers += &format!(
+                "Set-Cookie: {}={};{}\r\n",
+                boxed_cookie.name(),
+                boxed_cookie.value(),
+                match boxed_cookie.get_expiry() {
+                    Some( expiry ) => format!( " Max-Age:{}", expiry ),
+                    None => "".to_string()
+                }
+            );
+        }
+
+        more_headers
+    }
+
+    pub fn generate( &self ) -> Vec<u8> {
         Vec::from( format!(
             "HTTP/1.1 {} \r\nContent-Type: {}\r\nContent-Length: {}\r\n{}\r\n{}",
             self.code, self.content_type, self.body.len(),
-            more_headers,
+            self.generate_headers(),
             self.body
         ).as_bytes() )
     }
