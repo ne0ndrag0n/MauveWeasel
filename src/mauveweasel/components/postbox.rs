@@ -15,8 +15,7 @@ use chrono::serde::ts_seconds;
 use chrono::{Duration, DateTime, Utc};
 
 pub enum PostboxError {
-    MissingName,
-    MissingComment,
+    MissingField( Vec< String >, PostboxMessage ),
     BadPath,
     BadParse
 }
@@ -38,6 +37,7 @@ pub struct ValidationCookie {
    id: String,
    #[serde(with = "ts_seconds")]
    creation: DateTime< Utc >,
+   pub validation_errors: Vec< String >,
    pub contents: PostboxMessage
 }
 
@@ -45,6 +45,7 @@ fn get_default_validation_cookie() -> ValidationCookie {
     ValidationCookie{
         id: format!( "{}", Uuid::new_v4() ),
         creation: Utc::now(),
+        validation_errors: Vec::new(),
         contents: PostboxMessage{
             name: String::new(),
             comment: String::new(),
@@ -53,11 +54,19 @@ fn get_default_validation_cookie() -> ValidationCookie {
     }
 }
 
+fn get_default_postbox_message() -> PostboxMessage {
+    PostboxMessage {
+        name: String::new(),
+        comment: String::new(),
+        email: String::new()
+    }
+}
+
 impl ValidationCookie {
     pub fn from_request( request: &Request, server: &DynamicContentServer ) -> ValidationCookie {
         match request.raw_headers().get( "cookie" ) {
             Some( cookie_string ) => match cookie::parse( &cookie_string ).get( "postbox_validation" ) {
-                Some( uuid_string ) => match File::open( server.config().cookiejar_directory().to_string() + &format!( "/{}", uuid_string ) ) {
+                Some( uuid_string ) => match File::open( server.config().cookiejar_directory().to_string() + &format!( "/{}.bck", uuid_string ) ) {
                     Ok( file ) => bincode::deserialize_from( file ).unwrap_or( get_default_validation_cookie() ),
                     Err( _ ) => get_default_validation_cookie()
                 },
@@ -97,26 +106,30 @@ impl Cookie for ValidationCookie {
 
 impl Postbox {
     pub fn respond( request: Request, server: &DynamicContentServer ) -> Response {
+        let mut cookie: ValidationCookie = ValidationCookie::from_request( &request, server );
+
         match request.raw_headers().get( "content-type" ) {
             Some( value ) => match value.as_str() {
                 "application/x-www-form-urlencoded" => match Postbox::new( server.config().postbox_directory(), &request.content() ) {
                     Ok( postbox ) => match postbox.write_file() {
-                        Ok( _ ) => Response::create_and_set_redirect( 303, "/" ),
+                        Ok( _ ) => {
+                            if cookie.validation_errors.len() > 0 {
+                                cookie.validation_errors.clear();
+                                cookie.contents = get_default_postbox_message();
+                                cookie.save( &server.config() ).unwrap_or_else( | _ | { println!( "failed to save cookie for postbox error" ) } );
+                            }
+                            Response::create_and_set_redirect( 303, "/" )
+                        },
                         Err( _ ) => Response::create( 500, "text/plain", "Internal server error: Could not write postbox file." ),
                     },
                     Err( postbox_error ) => match postbox_error {
-                        PostboxError::MissingName => {
-                            // TODO: Store form data for cookie better
-                            //let cookie: Box< Cookie > = Box::new( ValidationCookie::from_request( &request, server ) );
-                            let mut response = Response::create_and_set_redirect( 303, &( String::from( server.config().reverse_proxy_prefix() ) + "/contact?name_valid=false" ) );
-                            //response.set_cookie( cookie );
-                            response
-                        },
-                        PostboxError::MissingComment => {
-                            // TODO: Store form data for cookie better
-                            //let cookie: Box< Cookie > = Box::new( ValidationCookie::from_request( &request, server ) );
-                            let mut response = Response::create_and_set_redirect( 303, &( String::from( server.config().reverse_proxy_prefix() ) + "/contact?comment_valid=false" ) );
-                            //response.set_cookie( cookie );
+                        PostboxError::MissingField( validation_errors, message ) => {
+                            cookie.validation_errors = validation_errors;
+                            cookie.contents = message;
+                            cookie.save( &server.config() ).unwrap_or_else( | _ | { println!( "failed to save cookie for postbox error" ) } );
+
+                            let mut response = Response::create_and_set_redirect( 303, &( String::from( server.config().reverse_proxy_prefix() ) + "/contact" ) );
+                            response.set_cookie( Box::new( cookie ) );
                             response
                         },
                         PostboxError::BadPath => Response::create( 500, "text/plain", "Internal server error: bad postbox path." ),
@@ -140,10 +153,15 @@ impl Postbox {
             Err( _ ) => return Err( PostboxError::BadParse )
         };
 
-        if message.name == "" { return Err( PostboxError::MissingName ) }
-        if message.comment == "" { return Err( PostboxError::MissingComment ) }
+        let mut errors: Vec< String > = Vec::new();
+        if message.name == "" { errors.push( "Please enter a name.".to_string() ); }
+        if message.comment == "" { errors.push( "Please enter a comment.".to_string() ); }
 
-        Ok( Postbox { path, message } )
+        if errors.len() > 0 {
+            Err( PostboxError::MissingField( errors, message ) )
+        } else {
+            Ok( Postbox { path, message } )
+        }
     }
 
     fn write_file( &self ) -> io::Result< &str > {

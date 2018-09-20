@@ -97,8 +97,8 @@
             </div>
             {{/if}}
             <form action="/d/postbox" method="post">
-                <input type="text" name="name" placeholder="Name">
-                <textarea name="comment" placeholder="Comment"></textarea>
+                <input type="text" name="name" placeholder="Name"{{#if name}} value="{{{ name }}}"{{/if}}>
+                <textarea name="comment" placeholder="Comment">{{#if comment}}{{{ comment }}}{{/if}}</textarea>
                 <span>Leave this clear to avoid being flagged as an automated submission.</span>
                 <input type="text" name="email">
                 <button class="hover-green" type="submit">Submit</button>

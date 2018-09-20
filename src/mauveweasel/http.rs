@@ -165,8 +165,8 @@ impl Response {
                 "Set-Cookie: {}={};{}\r\n",
                 boxed_cookie.name(),
                 boxed_cookie.value(),
-                match boxed_cookie.get_expiry() {
-                    Some( expiry ) => format!( " Max-Age:{}", expiry ),
+                match boxed_cookie.max_age() {
+                    Some( age ) => format!( " Max-Age:{}", age.num_seconds() ),
                     None => "".to_string()
                 }
             );
