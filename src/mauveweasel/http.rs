@@ -166,7 +166,7 @@ impl Response {
                 boxed_cookie.name(),
                 boxed_cookie.value(),
                 match boxed_cookie.max_age() {
-                    Some( age ) => format!( " Max-Age:{}", age.num_seconds() ),
+                    Some( age ) => format!( " Max-Age={}", age.num_seconds() ),
                     None => "".to_string()
                 }
             );
