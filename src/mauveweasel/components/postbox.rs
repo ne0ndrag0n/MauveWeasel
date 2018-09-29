@@ -66,7 +66,7 @@ impl ValidationCookie {
     pub fn from_request( request: &Request, server: &DynamicContentServer ) -> ValidationCookie {
         match request.raw_headers().get( "cookie" ) {
             Some( cookie_string ) => match cookie::parse( &cookie_string ).get( "postbox_validation" ) {
-                Some( uuid_string ) => match File::open( server.config().cookiejar_directory().to_string() + &format!( "/{}.bck", uuid_string ) ) {
+                Some( uuid_string ) => match File::open( server.config().cookiejar_directory().to_string() + &format!( "/session/{}.bck", uuid_string ) ) {
                     Ok( file ) => bincode::deserialize_from( file ).unwrap_or( get_default_validation_cookie() ),
                     Err( _ ) => get_default_validation_cookie()
                 },
