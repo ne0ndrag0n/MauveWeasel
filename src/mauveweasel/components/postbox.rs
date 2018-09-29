@@ -95,7 +95,7 @@ impl Cookie for ValidationCookie {
    }
 
    fn save( &self, config: &Config ) -> io::Result< () > {
-       let file = File::create( config.cookiejar_directory().to_string() + &format!( "/{}.bck", self.value() ) )?;
+       let file = File::create( config.cookiejar_directory().to_string() + &format!( "/session/{}.bck", self.value() ) )?;
 
        match bincode::serialize_into( file, &self ) {
            Ok( _ ) => Ok( () ),
