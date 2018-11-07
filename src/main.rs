@@ -1,8 +1,9 @@
 #![allow(non_snake_case)]
+#![allow(dead_code)]
 
 #[macro_use] extern crate serde_derive;
 #[macro_use] extern crate serde_json;
-#[macro_use] extern crate chrono;
+extern crate chrono;
 extern crate bincode;
 extern crate toml;
 extern crate uuid;

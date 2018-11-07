@@ -3,7 +3,6 @@ use std::io::Read;
 use std::collections::HashMap;
 use std::io::{ BufReader, BufRead };
 use mauveweasel::cookie::Cookie;
-use chrono::Duration;
 
 #[derive(Copy, Clone)]
 pub enum Method {
@@ -47,7 +46,11 @@ impl Request {
         let reader = BufReader::new( stream );
         let mut take = reader.take( max_request_size );
 
-        take.read_until( b'\n', &mut header_buffer );
+        match take.read_until( b'\n', &mut header_buffer ) {
+            Ok( _ ) => {},
+            Err( _ ) => return Err( "Could not read header buffer" )
+        };
+
         let request_line = match String::from_utf8( header_buffer ) {
             Ok( result ) => result,
             Err( _ ) => return Err( "Header could not be converted to UTF-8" )
@@ -79,7 +82,10 @@ impl Request {
         let mut content_length = 0;
         loop {
             let mut option_buffer: Vec< u8 > = vec![];
-            take.read_until( b'\n', &mut option_buffer );
+            match take.read_until( b'\n', &mut option_buffer ) {
+                Ok( _ ) => {},
+                Err( _ ) => return Err( "Could not read option buffer" )
+            };
             let mut option_line = match String::from_utf8( option_buffer ) {
                 Ok( result ) => result,
                 Err( _ ) => {
