@@ -6,7 +6,10 @@ pub struct Config {
     max_request_size: Option< u64 >,
     templates_directory: Option< String >,
     reverse_proxy_prefix: Option< String >,
-    cookiejar_directory: Option< String >
+    cookiejar_directory: Option< String >,
+    newsgen_directory: Option< String >,
+    newsgen_output_directory: Option< String >,
+    newsgen_toc_filename: Option< String >
 }
 
 impl Config {
@@ -57,6 +60,27 @@ impl Config {
         match self.cookiejar_directory {
             Some( ref val ) => &val,
             None => "./cookiejar"
+        }
+    }
+
+    pub fn newsgen_directory( &self ) -> &str {
+        match self.newsgen_directory {
+            Some( ref val ) => &val,
+            None => "./newsgen"
+        }
+    }
+
+    pub fn newsgen_output_directory( &self ) -> &str {
+        match self.newsgen_output_directory {
+            Some( ref val ) => &val,
+            None => "./news"
+        }
+    }
+
+    pub fn newsgen_toc_filename( &self ) -> &str {
+        match self.newsgen_toc_filename {
+            Some( ref val ) => &val,
+            None => "toc.html"
         }
     }
 
