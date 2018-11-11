@@ -1,5 +1,6 @@
 use mauveweasel::server::DynamicContentServer;
 use mauveweasel::components::postbox::Postbox;
+use mauveweasel::components::newsgen::Newsgen;
 use mauveweasel::components::contactform as ContactForm;
 use mauveweasel::http::{Method, Request,Response};
 
@@ -58,10 +59,11 @@ pub fn route( request: Request, server: &DynamicContentServer ) -> Response {
     match ( method, url.as_str() ) {
         ( Method::GET, "/status" ) => Response::create( 200, "text/plain", "up" ),
         ( Method::GET, "/contact" ) => ContactForm::respond( request, server ),
+        ( Method::GET, "/news" ) => Newsgen::respond( request, server ),
         ( Method::POST, "/postbox" ) => Postbox::respond( request, server ),
         ( Method::GET, dynamic_url ) => {
             Response::create( 501, "text/plain", "Not implemented" )
-        }
+        },
         ( _, _ ) => Response::create( 404, "text/plain", "Not found" )
     }
 }

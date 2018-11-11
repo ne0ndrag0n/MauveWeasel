@@ -1,0 +1,50 @@
+<!doctype html>
+<html class="no-js" lang="">
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <title>example toc generation</title>
+    <meta property="og:title" content="ne0ndrag0n - News and Articles">
+    <meta property="og:type" content="website">
+    <meta property="og:image" content="https://www.ne0ndrag0n.com/icon.png">
+    <meta property="og:url" content="https://www.ne0ndrag0n.com/">
+    <meta property="og:description" content="ne0ndrag0n develops cool retrocomputing, embedded systems, and indie gamedev projects.">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+</head>
+
+<body>
+
+  {{#each this}}
+    <h1>Uuid</h1>
+    <p>{{@key}}</p>
+
+    <h1>Filename</h1>
+    <p>{{filename}}</p>
+
+    <h1>Category</h1>
+    <p>{{category}}</p>
+
+    <h1>Slug</h1>
+    <p>{{slug}}</p>
+
+    <h1>Headline</h1>
+    <p>{{headline}}</p>
+
+    <h1>Brief</h1>
+    <p>{{brief}}</p>
+
+    <h1>Takeaways</h1>
+    <ul>
+      {{#each takeaways}}
+        <li>{{this}}</li>
+      {{/each}}
+    </ul>
+
+    <br></br>
+  {{/each}}
+
+</body>
+
+</html>

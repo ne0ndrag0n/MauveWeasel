@@ -1,11 +1,12 @@
 use std::fs::File;
 use std::io::Read;
+use std::io::Result;
 
-pub fn get_file_string( path: &str ) -> String {
-    let mut file = File::open( path ).expect( &format!( "Unable to open file: {}", path ) );
+pub fn get_file_string( path: &str ) -> Result< String > {
+    let mut file = File::open( path )?;
     let mut result = String::new();
 
-    file.read_to_string( &mut result ).expect( &format!( "Unable to read file: {}", path ) );
+    file.read_to_string( &mut result )?;
 
-    result
+    Ok( result )
 }

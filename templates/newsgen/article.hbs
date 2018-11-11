@@ -1,0 +1,59 @@
+<!doctype html>
+<html class="no-js" lang="">
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <title>ne0ndrag0n - {{ headline }}</title>
+    <meta property="og:title" content="ne0ndrag0n - {{ headline }}">
+    <meta property="og:type" content="website">
+    <meta property="og:image" content="https://www.ne0ndrag0n.com/icon.png">
+    <meta property="og:url" content="https://www.ne0ndrag0n.com/">
+    <meta property="og:description" content="{{ brief }}">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+    <link rel="icon" href="/favicon.ico" type="image/x-icon" />
+    <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon" />
+    <link rel="apple-touch-icon" href="icon.png">
+
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.2.0/css/all.css" integrity="sha384-hWVjflwFxL6sNzntih27bfxkr27PmbbK/iSvJ+a4+0owXq79v+lsFkW54bOGbiDQ" crossorigin="anonymous">
+    <link rel="stylesheet" href="/css/normalize.css">
+    <link rel="stylesheet" href="/css/main.css">
+    <link rel="stylesheet" href="/css/articles.css">
+    <link rel="stylesheet" href="/css/hover-tricks.css">
+</head>
+
+<body>
+
+    <header>
+        <h1><a class="spectrum" href="/">ne0ndrag0n</a></h1>
+        <h1>News & Articles</h1>
+    </header>
+
+    <main>
+      <article>
+        <div class="headline">
+          <h1>{{ headline }}</h1>
+          <h4>Posted {{ pub_date }}</h4>
+        </div>
+        <div class="highlights">
+          <div class="highlights-container">
+            {{#each takeaways}}
+            <div><span class="fas fa-chevron-right"></span>{{ this }}</div>
+            {{/each}}
+          </div>
+        </div>
+        <div class="article-text">
+          {{{ article }}}
+        </div>
+      </article>
+    </main>
+
+    <footer>
+        <span>(c) 2018 ne0ndrag0n. Perpetually under construction.</span>
+    </footer>
+
+</body>
+
+</html>

@@ -25,7 +25,7 @@ impl DynamicContentServer {
 
     pub fn new() -> DynamicContentServer {
         let mut result = DynamicContentServer {
-            config: toml::from_str( utility::get_file_string( "/etc/mauveweasel/options.toml" ).as_str() )
+            config: toml::from_str( utility::get_file_string( "/etc/mauveweasel/options.toml" ).expect( "Could not open MauveWeasel configuration file!" ).as_str() )
                           .expect( "Could not parse TOML" ),
             templates: Handlebars::new()
         };
