@@ -2,6 +2,7 @@ use mauveweasel::options::Config;
 use mauveweasel::utility;
 use mauveweasel::http::Request;
 use mauveweasel::router;
+use mauveweasel::helpers;
 use toml;
 use std::net::{TcpListener};
 use std::io::Write;
@@ -38,6 +39,9 @@ impl DynamicContentServer {
             Ok( _ ) => println!( "Successfully loaded templates" ),
             Err( message ) => println!( "Error loading templates: {}", message )
         };
+
+        // register helpers
+        result.templates.register_helper( "ifval", Box::new( helpers::ifval ) );
 
         result
     }

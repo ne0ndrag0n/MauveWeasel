@@ -88,6 +88,13 @@ impl Document {
         Ok( () )
     }
 
+    pub fn category( &self ) -> &str {
+        match &self.category {
+            Some( category ) => category,
+            None => ""
+        }
+    }
+
     pub fn document_text( &self ) -> &str {
         match &self.document_text {
             Some( text ) => text,
