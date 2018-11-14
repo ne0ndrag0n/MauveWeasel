@@ -4,46 +4,72 @@
 <head>
     <meta charset="utf-8">
     <meta http-equiv="x-ua-compatible" content="ie=edge">
-    <title>example toc generation</title>
+    <title>ne0ndrag0n - News and Articles</title>
     <meta property="og:title" content="ne0ndrag0n - News and Articles">
     <meta property="og:type" content="website">
     <meta property="og:image" content="https://www.ne0ndrag0n.com/icon.png">
     <meta property="og:url" content="https://www.ne0ndrag0n.com/">
-    <meta property="og:description" content="ne0ndrag0n develops cool retrocomputing, embedded systems, and indie gamedev projects.">
+    <meta property="og:description" content="The latest articles written by Ashley.">
 
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+    <link rel="icon" href="/favicon.ico" type="image/x-icon" />
+    <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon" />
+    <link rel="apple-touch-icon" href="icon.png">
+
+    <link rel="stylesheet" href="/css/normalize.css">
+    <link rel="stylesheet" href="/css/main.css">
+    <link rel="stylesheet" href="/css/news.css">
+    <link rel="stylesheet" href="/css/hover-tricks.css">
 </head>
 
 <body>
 
-  {{#each this}}
-    <h1>Uuid</h1>
-    <p>{{@key}}</p>
+    <header>
+        <h1><a class="spectrum" href="/">ne0ndrag0n</a></h1>
+        <h1>News & Articles</h1>
+    </header>
 
-    <h1>Filename</h1>
-    <p>{{filename}}</p>
+    <main class="news">
+      <div class="hover-cyan news-block">
+        <div class="left-column">
+          <h2>Technical Articles</h2>
+          <h4>ne0ndrag0n's project progress, tutorials, and technical opinions.</h4>
+        </div>
+        <div class="right-column">
+          {{#each this}}
+            {{#ifval category "technical"}}
+              <div class="news-segment">
+                <a href="/d/news/{{ @key }}">{{ headline }}</a>
+                <div>Posted on {{ pubdate }}</div>
+                <h4>{{ brief }}</h4>
+              </div>
+            {{/ifval}}
+          {{/each}}
+        </div>
+      </div>
+      <div class="hover-purple news-block">
+        <div class="left-column">
+          <h2>The Real World</h2>
+          <h4>Political opinions and philosophy.</h4>
+        </div>
+        <div class="right-column">
+          {{#each this}}
+            {{#ifval category "realworld"}}
+              <div class="news-segment">
+                <a href="/d/news/{{ @key }}">{{ headline }}</a>
+                <div>Posted on {{ pubdate }}</div>
+                <h4>{{ brief }}</h4>
+              </div>
+            {{/ifval}}
+          {{/each}}
+        </div>
+      </div>
+    </main>
 
-    <h1>Category</h1>
-    <p>{{category}}</p>
-
-    <h1>Slug</h1>
-    <p>{{slug}}</p>
-
-    <h1>Headline</h1>
-    <p>{{headline}}</p>
-
-    <h1>Brief</h1>
-    <p>{{brief}}</p>
-
-    <h1>Takeaways</h1>
-    <ul>
-      {{#each takeaways}}
-        <li>{{this}}</li>
-      {{/each}}
-    </ul>
-
-    <hr></hr>
-  {{/each}}
+    <footer>
+        <span>(c) 2018 ne0ndrag0n. Perpetually under construction.</span>
+    </footer>
 
 </body>
 

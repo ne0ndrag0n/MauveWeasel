@@ -10,8 +10,6 @@ pub fn ifval<'reg, 'rc>(
     let needle = h.param( 0 ).and_then( |v| v.value().as_str() ).unwrap_or( "" );
     let value = h.param( 1 ).and_then( |v| v.value().as_str() ).unwrap_or( "" );
 
-    println!( "handlebars helper 1:{} 2:{}", needle, value );
-
     if needle == value {
         match h.template() {
             Some( template ) => match template.render( r, ctx, rc, out ) {
@@ -26,7 +24,7 @@ pub fn ifval<'reg, 'rc>(
                 Ok( _ ) => {},
                 Err( _ ) => return Err( RenderError::new( "Couldn't render inverse!" ) )
             },
-            None => return Err( RenderError::new( "Couldn't unwrap inverse!" ) )
+            None => {}
         }
     }
 
