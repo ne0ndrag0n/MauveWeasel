@@ -88,6 +88,10 @@ impl Document {
         Ok( () )
     }
 
+    pub fn filename( &self ) -> &str {
+        &self.filename
+    }
+
     pub fn category( &self ) -> &str {
         match &self.category {
             Some( category ) => category,
@@ -110,14 +114,29 @@ impl Newsgen {
         }
     }
 
+    fn get_filename_to_uuid_index( &self ) -> HashMap< String, String > {
+        let mut result: HashMap< String, String > = HashMap::new();
+
+        for( uuid, document ) in &self.index {
+            result.insert( document.filename().to_owned(), uuid.to_owned() );
+        }
+
+        result
+    }
+
     fn build_index( &mut self, config: &Config ) -> io::Result< () > {
+        let original_uuid_index = self.get_filename_to_uuid_index();
+
         self.index.clear();
 
         let listing = self.get_dir_list( config )?;
 
         // Build index HashMap using this directory
-        for document in listing {
-            self.index.insert( format!( "{}", Uuid::new_v4() ), document );
+        for mut document in listing {
+            self.index.insert( match original_uuid_index.get( document.filename() ) {
+                Some( existing_uuid ) => existing_uuid.to_owned(),
+                None => format!( "{}", Uuid::new_v4() )
+            }, document );
         }
 
         // Save index
