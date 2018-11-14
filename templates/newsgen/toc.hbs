@@ -37,14 +37,12 @@
           <h4>ne0ndrag0n's project progress, tutorials, and technical opinions.</h4>
         </div>
         <div class="right-column">
-          {{#each this}}
-            {{#ifval category "technical"}}
-              <div class="news-segment">
-                <a href="/d/news/{{ @key }}">{{ headline }}</a>
-                <div>Posted on {{ pubdate }}</div>
-                <h4>{{ brief }}</h4>
-              </div>
-            {{/ifval}}
+          {{#each this.technical}}
+            <div class="news-segment">
+              <a href="/d/news/{{ uuid }}">{{ document.headline }}</a>
+              <div>Posted on {{ document.pubdate }}</div>
+              <h4>{{ document.brief }}</h4>
+            </div>
           {{/each}}
         </div>
       </div>
@@ -54,14 +52,12 @@
           <h4>Political opinions and philosophy.</h4>
         </div>
         <div class="right-column">
-          {{#each this}}
-            {{#ifval category "realworld"}}
-              <div class="news-segment">
-                <a href="/d/news/{{ @key }}">{{ headline }}</a>
-                <div>Posted on {{ pubdate }}</div>
-                <h4>{{ brief }}</h4>
-              </div>
-            {{/ifval}}
+          {{#each this.realworld}}
+            <div class="news-segment">
+              <a href="/d/news/{{ uuid }}">{{ document.headline }}</a>
+              <div>Posted on {{ document.pubdate }}</div>
+              <h4>{{ document.brief }}</h4>
+            </div>
           {{/each}}
         </div>
       </div>

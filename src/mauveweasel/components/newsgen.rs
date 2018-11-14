@@ -8,7 +8,7 @@ use std::io;
 use std::time::SystemTime;
 use std::cmp::PartialEq;
 use handlebars::Handlebars;
-use mauveweasel::http::{ Request,Response };
+use mauveweasel::http::Response;
 use mauveweasel::options::Config;
 use mauveweasel::server::DynamicContentServer;
 use mauveweasel::utility;
@@ -32,6 +32,12 @@ impl PartialEq for Document {
         self.filename == other.filename &&
         self.modified_time == other.modified_time
     }
+}
+
+#[derive(Serialize)]
+pub struct TemplatableDocument<'a> {
+    document: &'a Document,
+    uuid: String
 }
 
 pub struct Newsgen {
@@ -172,6 +178,18 @@ impl Newsgen {
         false
     }
 
+    fn get_sorted_categories_list( &self ) -> HashMap< String, Vec< TemplatableDocument > > {
+        let mut result: HashMap< String, Vec< TemplatableDocument > > = HashMap::new();
+
+        for ( uuid, document ) in &self.index {
+            let mut vec = result.entry( document.category().to_owned() ).or_insert( Vec::new() );
+
+            vec.push( TemplatableDocument { document: &document, uuid: uuid.to_owned() } );
+        }
+
+        result
+    }
+
     fn rebuild_toc( &mut self, config: &Config, templates: &Handlebars ) -> Response {
         println!( "rebuilding toc" );
 
@@ -187,7 +205,7 @@ impl Newsgen {
                 }
 
                 // Generate TOC
-                let result = match templates.render( "newsgen/toc", &self.index ) {
+                let result = match templates.render( "newsgen/toc", &self.get_sorted_categories_list() ) {
                     Ok( result ) => result,
                     Err( msg ) => {
                         println!( "handlebars: {}", msg );
@@ -209,7 +227,7 @@ impl Newsgen {
         }
     }
 
-    pub fn respond( request: Request, server: &DynamicContentServer ) -> Response {
+    pub fn respond( server: &DynamicContentServer ) -> Response {
         let mut newsgen = Newsgen::new();
 
         // Open cache/ngindex.bin
