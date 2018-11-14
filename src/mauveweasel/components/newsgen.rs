@@ -111,6 +111,8 @@ impl Newsgen {
     }
 
     fn build_index( &mut self, config: &Config ) -> io::Result< () > {
+        self.index.clear();
+
         let listing = self.get_dir_list( config )?;
 
         // Build index HashMap using this directory
@@ -152,6 +154,8 @@ impl Newsgen {
     }
 
     fn rebuild_toc( &mut self, config: &Config, templates: &Handlebars ) -> Response {
+        println!( "rebuilding toc" );
+
         match self.build_index( config ) {
             Ok( _ ) => {
 
@@ -212,11 +216,23 @@ impl Newsgen {
 
         // If directory listing count is different from hashmap count, then we know we need to regenerate the index and html together
         if newsgen.index.len() != listing.len() {
+            println!( "newsgen.index {} listing {}", newsgen.index.len(), listing.len() );
             return newsgen.rebuild_toc( server.config(), server.templates() )
         }
 
         // The numbers of items are equivalent, so verify items in this listing are equivalent to their items in the hashmap
+        for needle in listing {
+            if !newsgen.document_equivalent( &needle ) {
+                // Stop everything and rebuild toc
+                println!( "Document was not equivalent" );
+                return newsgen.rebuild_toc( server.config(), server.templates() )
+            }
+        }
 
-        Response::create( 501, "text/plain", "Not implemented" )
+        // If you got here then rebuild was not required - open up toc.html and serve it
+        match utility::get_file_string( &( server.config().cache_directory().to_owned() + "/toc.html" ) ) {
+            Ok( text ) => return Response::create( 200, "text/html", &text ),
+            Err( _ ) => return Response::create( 500, "text/plain", "Internal server error: Failed to open <cache directory>/toc.html" )
+        }
     }
 }
