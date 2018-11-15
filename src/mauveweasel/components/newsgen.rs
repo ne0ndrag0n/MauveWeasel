@@ -1,6 +1,8 @@
 use bincode;
+use comrak::{ ComrakOptions, markdown_to_html };
 use uuid::Uuid;
 use std::collections::HashMap;
+use std::path::Path;
 use std::fs::File;
 use std::fs;
 use std::io::{ ErrorKind, Write };
@@ -35,9 +37,15 @@ impl PartialEq for Document {
 }
 
 #[derive(Serialize)]
-pub struct TemplatableDocument<'a> {
+struct TocData<'a> {
     document: &'a Document,
     uuid: String
+}
+
+#[derive(Serialize)]
+struct ArticleData<'a> {
+    document: &'a Document,
+    article: String
 }
 
 pub struct Newsgen {
@@ -92,6 +100,29 @@ impl Document {
         self.document_text = Some( arr.join( "\n" ) );
 
         Ok( () )
+    }
+
+    pub fn generate_and_respond( &mut self, uuid: &str, server: &DynamicContentServer ) -> Response {
+        match self.process() {
+            Ok( _ ) => {},
+            Err( _ ) => return Response::create( 500, "text/plain", "Internal server error: Failed to process markdown document" )
+        };
+
+        let product = match server.templates().render(
+            "newsgen/article",
+            &ArticleData{ document: &self, article: markdown_to_html( self.document_text(), &ComrakOptions::default() ) }
+        ) {
+            Ok( product ) => product,
+            Err( _ ) => return Response::create( 500, "text/plain", "Internal server error: Failed to render document" )
+        };
+
+        match File::create( server.config().cache_directory().to_owned() + &format!( "/{}.html", uuid ) ) {
+            Ok( mut file ) => match file.write_all( product.as_bytes() ){
+                Ok( _ ) => return Response::create( 200, "text/html", &product ),
+                Err( _ ) => return Response::create( 500, "text/plain", "Internal server error: Failed to create cached article" )
+            },
+            Err( _ ) => return Response::create( 500, "text/plain", "Internal server error: Failed to create cached article" )
+        };
     }
 
     pub fn filename( &self ) -> &str {
@@ -178,13 +209,13 @@ impl Newsgen {
         false
     }
 
-    fn get_sorted_categories_list( &self ) -> HashMap< String, Vec< TemplatableDocument > > {
-        let mut result: HashMap< String, Vec< TemplatableDocument > > = HashMap::new();
+    fn get_sorted_categories_list( &self ) -> HashMap< String, Vec< TocData > > {
+        let mut result: HashMap< String, Vec< TocData > > = HashMap::new();
 
         for ( uuid, document ) in &self.index {
             let mut vec = result.entry( document.category().to_owned() ).or_insert( Vec::new() );
 
-            vec.push( TemplatableDocument { document: &document, uuid: uuid.to_owned() } );
+            vec.push( TocData { document: &document, uuid: uuid.to_owned() } );
         }
 
         result
@@ -224,6 +255,91 @@ impl Newsgen {
 
             },
             Err( _ ) => Response::create( 500, "text/plain", "Internal server error: Failed to create ngindex.bin" )
+        }
+    }
+
+    pub fn respond_individual( uuid: &str, server: &DynamicContentServer ) -> Response {
+        // First thing - open file. If the file can't be opened, return 404
+        let file = match File::open( server.config().cache_directory().to_owned() + "/ngindex.bin" ) {
+            Ok( file ) => file,
+            Err( error ) => match error.kind() {
+                ErrorKind::NotFound => return Response::create( 404, "text/plain", "Not found" ),
+                _ => return Response::create( 500, "text/plain", "Internal server error: Could not open ngindex.bin" )
+            }
+        };
+
+        let mut newsgen = Newsgen::new();
+
+        // Load index
+        newsgen.index = match bincode::deserialize_from( file ) {
+            Ok( product ) => product,
+            Err( _ ) => return Response::create( 500, "text/plain", "Internal server error: Failed to read ngindex.bin" )
+        };
+
+        // If item isn't in index, return 404
+        let filename = match newsgen.index.get( uuid ) {
+            Some( document ) => document.filename().to_owned(),
+            None => return Response::create( 404, "text/plain", "Not found" )
+        };
+
+        let path = Path::new( &filename );
+        if !path.exists() {
+            // If the file behind the document doesn't exist, delete its entry and return 404
+            newsgen.index.remove( uuid );
+
+            // Save the new state of newsgen.index and write 404
+            match File::create( server.config().cache_directory().to_owned() + "/ngindex.bin" ) {
+                Ok( mut file ) => match bincode::serialize_into( &mut file, &newsgen.index ) {
+                    Ok( _ ) => return Response::create( 404, "text/plain", "Not found" ),
+                    Err( _ ) => return Response::create( 500, "text/plain", "Internal server error: Failed to write ngindex.bin" )
+                },
+                Err( _ ) => return Response::create( 500, "text/plain", "Internal server error: Failed to create ngindex.bin" )
+            };
+        }
+
+        // The file exists but its mtime may have been updated
+        let most_current_document = Document::new(
+            &filename,
+            match path.metadata() {
+                Ok( metadata ) => match metadata.modified() {
+                    Ok( mtime ) => mtime,
+                    Err( _ ) => return Response::create( 500, "text/plain", "Internal server error: Could not read mtime for file" )
+                },
+                Err( _ ) => return Response::create( 500, "text/plain", "Internal server error: Could not read mtime for file" )
+            }
+        );
+
+        // If path mtime is disparate from recorded mtime, rewrite the file
+        if *newsgen.index.get( uuid ).expect( "This should never happen" ) != most_current_document {
+            println!( "This article needs to be updated" );
+
+            // Reinsert item
+            newsgen.index.insert( uuid.to_owned(), most_current_document );
+
+            // Update ngindex.bin
+            match File::create( server.config().cache_directory().to_owned() + "/ngindex.bin" ) {
+                Ok( mut file ) => match bincode::serialize_into( &mut file, &newsgen.index ) {
+                    Ok( _ ) => {},
+                    Err( _ ) => return Response::create( 500, "text/plain", "Internal server error: Failed to write ngindex.bin" )
+                },
+                Err( _ ) => return Response::create( 500, "text/plain", "Internal server error: Failed to create ngindex.bin" )
+            };
+
+            // Regenerate and serve document
+            let document = newsgen.index.get_mut( uuid ).expect( "This should never happen" );
+            return document.generate_and_respond( uuid, server );
+        }
+
+        // If path mtime and document are equivalent, but there was never a file generated, generate the file
+        match utility::get_file_string( &( server.config().cache_directory().to_owned() + &format!( "/{}.html", uuid ) ) ) {
+            Ok( text ) => Response::create( 200, "text/html", &text ),
+            Err( error ) => match error.kind() {
+                ErrorKind::NotFound => {
+                    println!( "Generating new html cache from unchanged mtime" );
+                    return newsgen.index.get_mut( uuid ).expect( "This should never happen" ).generate_and_respond( uuid, server )
+                },
+                _ => return Response::create( 500, "text/plain", "Internal server error: Failed to open generated cache file" )
+            }
         }
     }
 

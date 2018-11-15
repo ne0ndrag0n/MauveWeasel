@@ -4,12 +4,12 @@
 <head>
     <meta charset="utf-8">
     <meta http-equiv="x-ua-compatible" content="ie=edge">
-    <title>ne0ndrag0n - {{ headline }}</title>
-    <meta property="og:title" content="ne0ndrag0n - {{ headline }}">
+    <title>ne0ndrag0n - {{ document.headline }}</title>
+    <meta property="og:title" content="ne0ndrag0n - {{ document.headline }}">
     <meta property="og:type" content="website">
     <meta property="og:image" content="https://www.ne0ndrag0n.com/icon.png">
     <meta property="og:url" content="https://www.ne0ndrag0n.com/">
-    <meta property="og:description" content="{{ brief }}">
+    <meta property="og:description" content="{{ document.brief }}">
 
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 
@@ -34,12 +34,12 @@
     <main>
       <article>
         <div class="headline">
-          <h1>{{ headline }}</h1>
-          <h4>Posted {{ pub_date }}</h4>
+          <h1>{{ document.headline }}</h1>
+          <h4>Posted {{ document.pubdate }}</h4>
         </div>
         <div class="highlights">
           <div class="highlights-container">
-            {{#each takeaways}}
+            {{#each document.takeaways}}
             <div><span class="fas fa-chevron-right"></span>{{ this }}</div>
             {{/each}}
           </div>
