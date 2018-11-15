@@ -140,6 +140,10 @@ pub struct Response {
 }
 
 impl Response {
+    pub fn code( &self ) -> u16 {
+        self.code
+    }
+
     pub fn redirect( &self ) -> &str {
         &self.redirect
     }

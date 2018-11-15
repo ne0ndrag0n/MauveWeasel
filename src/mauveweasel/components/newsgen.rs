@@ -9,7 +9,6 @@ use std::io::{ ErrorKind, Write };
 use std::io;
 use std::time::SystemTime;
 use std::cmp::PartialEq;
-use handlebars::Handlebars;
 use mauveweasel::http::Response;
 use mauveweasel::options::Config;
 use mauveweasel::server::DynamicContentServer;
@@ -221,22 +220,22 @@ impl Newsgen {
         result
     }
 
-    fn rebuild_toc( &mut self, config: &Config, templates: &Handlebars ) -> Response {
-        println!( "rebuilding toc" );
+    fn rebuild_toc( &mut self, server: &DynamicContentServer ) -> Response {
+        println!( "rebuilding toc and generating articles" );
 
-        match self.build_index( config ) {
+        match self.build_index( server.config() ) {
             Ok( _ ) => {
 
                 // Load all documents and parse headers + content
-                for ( _uuid, document ) in &mut self.index {
-                    match document.process() {
-                        Ok( _ ) => {},
-                        Err( _ ) => return Response::create( 500, "text/plain", "Internal server error: Failed to process document" )
-                    };
+                for ( uuid, document ) in &mut self.index {
+                    let response = document.generate_and_respond( &uuid, server );
+                    if response.code() == 500 {
+                        return response
+                    }
                 }
 
                 // Generate TOC
-                let result = match templates.render( "newsgen/toc", &self.get_sorted_categories_list() ) {
+                let result = match server.templates().render( "newsgen/toc", &self.get_sorted_categories_list() ) {
                     Ok( result ) => result,
                     Err( msg ) => {
                         println!( "handlebars: {}", msg );
@@ -245,7 +244,7 @@ impl Newsgen {
                 };
 
                 // Save TOC to file
-                match File::create( config.cache_directory().to_owned() + "/toc.html" ) {
+                match File::create( server.config().cache_directory().to_owned() + "/toc.html" ) {
                     Ok( mut file ) => match file.write_all( result.as_bytes() ) {
                         Ok( _ ) => return Response::create( 200, "text/html", &result ),
                         Err( _ ) => return Response::create( 500, "text/plain", "Internal server error: Failed to write toc.html" )
@@ -355,7 +354,7 @@ impl Newsgen {
                 };
             },
             Err( error ) => match error.kind() {
-                ErrorKind::NotFound => return newsgen.rebuild_toc( server.config(), server.templates() ),
+                ErrorKind::NotFound => return newsgen.rebuild_toc( server ),
                 _ => return Response::create( 500, "text/plain", "Internal server error: Failed to create ngindex.bin" )
             }
         };
@@ -370,7 +369,7 @@ impl Newsgen {
         // If directory listing count is different from hashmap count, then we know we need to regenerate the index and html together
         if newsgen.index.len() != listing.len() {
             println!( "newsgen.index {} listing {}", newsgen.index.len(), listing.len() );
-            return newsgen.rebuild_toc( server.config(), server.templates() )
+            return newsgen.rebuild_toc( server )
         }
 
         // The numbers of items are equivalent, so verify items in this listing are equivalent to their items in the hashmap
@@ -378,7 +377,7 @@ impl Newsgen {
             if !newsgen.document_equivalent( &needle ) {
                 // Stop everything and rebuild toc
                 println!( "Document was not equivalent" );
-                return newsgen.rebuild_toc( server.config(), server.templates() )
+                return newsgen.rebuild_toc( server )
             }
         }
 
