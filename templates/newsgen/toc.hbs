@@ -39,9 +39,9 @@
         <div class="right-column">
           {{#each this.technical}}
             <div class="news-segment">
-              <a href="/d/news/{{ uuid }}">{{ document.headline }}</a>
-              <div>Posted on {{ document.pubdate }}</div>
-              <h4>{{ document.brief }}</h4>
+              <a href="/d/news/{{ filename }}">{{ headline }}</a>
+              <div>Posted on {{ pubdate }}</div>
+              <h4>{{ brief }}</h4>
             </div>
           {{else}}
             No articles yet
@@ -56,9 +56,9 @@
         <div class="right-column">
           {{#each this.realworld}}
             <div class="news-segment">
-              <a href="/d/news/{{ uuid }}">{{ document.headline }}</a>
-              <div>Posted on {{ document.pubdate }}</div>
-              <h4>{{ document.brief }}</h4>
+              <a href="/d/news/{{ filename }}">{{ headline }}</a>
+              <div>Posted on {{ pubdate }}</div>
+              <h4>{{ brief }}</h4>
             </div>
           {{else}}
             No articles yet

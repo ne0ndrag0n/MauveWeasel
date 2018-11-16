@@ -8,7 +8,8 @@ pub struct Config {
     reverse_proxy_prefix: Option< String >,
     cookiejar_directory: Option< String >,
     cache_directory: Option< String >,
-    newsgen_directory: Option< String >
+    newsgen_directory: Option< String >,
+    newsgen_lru_cache_size: Option< usize >
 }
 
 impl Config {
@@ -73,6 +74,13 @@ impl Config {
         match self.newsgen_directory {
             Some( ref val ) => &val,
             None => "./newsgen"
+        }
+    }
+
+    pub fn newsgen_lru_cache_size( &self ) -> usize {
+        match self.newsgen_lru_cache_size {
+            Some( val ) => val,
+            None => 8
         }
     }
 

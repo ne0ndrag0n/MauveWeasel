@@ -1,11 +1,10 @@
 use bincode;
 use comrak::{ ComrakOptions, markdown_to_html };
-use uuid::Uuid;
 use std::collections::HashMap;
 use std::path::Path;
 use std::fs::File;
 use std::fs;
-use std::io::{ ErrorKind, Write };
+use std::io::ErrorKind;
 use std::io;
 use std::time::SystemTime;
 use std::cmp::PartialEq;
@@ -13,64 +12,122 @@ use mauveweasel::http::Response;
 use mauveweasel::options::Config;
 use mauveweasel::server::DynamicContentServer;
 use mauveweasel::utility;
+use lru_cache::LruCache;
 
-#[derive(Eq,Serialize,Deserialize)]
-struct Document {
+#[derive(Serialize,Deserialize)]
+pub struct Document {
     filename: String,
-    modified_time: SystemTime,
-
-    category: Option< String >,
-    slug: Option< String >,
-    pubdate: Option< String >,
-    headline: Option< String >,
-    brief: Option< String >,
+    category: String,
+    slug: String,
+    pubdate: String,
+    headline: String,
+    brief: String,
     takeaways: Vec< String >,
-    document_text: Option< String >
+    document_text: String
 }
 
-impl PartialEq for Document {
-    fn eq( &self, other: &Document ) -> bool {
+#[derive(Eq,Serialize,Deserialize,Hash)]
+struct FileIndex {
+    filename: String,
+    modified_time: SystemTime
+}
+
+impl FileIndex {
+    pub fn new( filename: String, modified_time: SystemTime ) -> FileIndex {
+        FileIndex{ filename, modified_time }
+    }
+
+    pub fn filename( &self ) -> &str {
+        &self.filename
+    }
+}
+
+#[derive(Eq,Hash,Serialize,Deserialize)]
+enum CacheKey {
+    Document( FileIndex ),
+    Aggregate( Vec< FileIndex > )
+}
+
+impl CacheKey {
+    pub fn unwrap_document( &self ) -> &FileIndex {
+        match self {
+            CacheKey::Document( result ) => &result,
+            _ => panic!( "Incorrect type" )
+        }
+    }
+
+    pub fn unwrap_aggregate( &self ) -> &Vec< FileIndex > {
+        match self {
+            CacheKey::Aggregate( result ) => &result,
+            _ => panic!( "Incorrect type" )
+        }
+    }
+}
+
+impl PartialEq for CacheKey {
+    fn eq( &self, other: &CacheKey ) -> bool {
+        match self {
+            CacheKey::Document( index ) => match other {
+                CacheKey::Document( other_index ) => index == other_index,
+                _ => false
+            },
+            CacheKey::Aggregate( list ) => match other {
+                CacheKey::Aggregate( other_list ) => {
+                    if list.len() != other_list.len() {
+                        return false;
+                    }
+
+                    for item in list {
+                        let mut found_once = false;
+                        for other_item in other_list {
+                            if item == other_item { found_once = true; break; }
+                        }
+                        if !found_once {
+                            return false;
+                        }
+                    }
+
+                    true
+                },
+                _ => false
+            }
+        }
+    }
+}
+
+impl PartialEq for FileIndex {
+    fn eq( &self, other: &FileIndex ) -> bool {
         self.filename == other.filename &&
         self.modified_time == other.modified_time
     }
 }
 
-#[derive(Serialize)]
-struct TocData<'a> {
-    document: &'a Document,
-    uuid: String
-}
-
-#[derive(Serialize)]
-struct ArticleData<'a> {
-    document: &'a Document,
-    article: String
-}
-
 pub struct Newsgen {
-    index: HashMap< String, Document >
+    cache: LruCache< CacheKey, String >
 }
 
 impl Document {
-    pub fn new( filename: &str, modified_time: SystemTime ) -> Document {
+    pub fn new() -> Document {
         Document {
-            filename: filename.to_owned(),
-            modified_time: modified_time,
-            category: None,
-            slug: None,
-            pubdate: None,
-            headline: None,
-            brief: None,
+            filename: String::new(),
+            category: String::new(),
+            slug: String::new(),
+            pubdate: String::new(),
+            headline: String::new(),
+            brief: String::new(),
             takeaways: Vec::new(),
-            document_text: None
+            document_text: String::new()
         }
     }
 
-    /**
-     * Lazy-evaluate the document this Document object correlates to
-     */
-    pub fn process( &mut self ) -> io::Result< () > {
-        let file = utility::get_file_string( &self.filename )?;
+    pub fn from_file( path: &str ) -> io::Result< Document > {
+        let mut result = Document::new();
+        result.filename = match Path::new( path ).file_name() {
+            Some( path ) => path.to_string_lossy().to_string(),
+            None => return Err( io::Error::new( io::ErrorKind::Other, "" ) )
+        };
+
+        let file = utility::get_file_string( path )?;
         let mut lines = file.lines();
 
         for line in &mut lines {
@@ -82,12 +139,12 @@ impl Document {
             // Parse directive text
             let split: Vec< &str > = line.splitn( 2, ": " ).collect();
             match split[ 0 ] {
-                "Category" => self.category = Some( split[ 1 ].to_owned() ),
-                "Url" => self.slug = Some( split[ 1 ].to_owned() ),
-                "Pubdate" => self.pubdate = Some( split[ 1 ].to_owned() ),
-                "Headline" => self.headline = Some( split[ 1 ].to_owned() ),
-                "Brief" => self.brief = Some( split[ 1 ].to_owned() ),
-                "Takeaway" => self.takeaways.push( split[ 1 ].to_owned() ),
+                "Category" => result.category = split[ 1 ].to_owned(),
+                "Url" => result.slug = split[ 1 ].to_owned(),
+                "Pubdate" => result.pubdate = split[ 1 ].to_owned(),
+                "Headline" => result.headline = split[ 1 ].to_owned(),
+                "Brief" => result.brief = split[ 1 ].to_owned(),
+                "Takeaway" => result.takeaways.push( split[ 1 ].to_owned() ),
                 other => println!( "Invalid directive for markdown article: {}", other )
             }
         }
@@ -96,94 +153,39 @@ impl Document {
         let arr: Vec< &str > = lines.collect();
 
         // That's the rest of the document
-        self.document_text = Some( arr.join( "\n" ) );
+        result.document_text = arr.join( "\n" );
 
-        Ok( () )
+        Ok( result )
     }
 
-    pub fn generate_and_respond( &mut self, uuid: &str, server: &DynamicContentServer ) -> Response {
-        match self.process() {
-            Ok( _ ) => {},
-            Err( _ ) => return Response::create( 500, "text/plain", "Internal server error: Failed to process markdown document" )
-        };
+    pub fn generate( &mut self, server: &DynamicContentServer ) -> Result< String, &'static str > {
+        // Use comrak to convert document_text to article_text
+        self.document_text = markdown_to_html( &self.document_text, &ComrakOptions::default() );
 
-        let product = match server.templates().render(
-            "newsgen/article",
-            &ArticleData{ document: &self, article: markdown_to_html( self.document_text(), &ComrakOptions::default() ) }
-        ) {
-            Ok( product ) => product,
-            Err( _ ) => return Response::create( 500, "text/plain", "Internal server error: Failed to render document" )
+        // Use handlebars to convert Document to HTML
+        match server.templates().render( "newsgen/article", self ) {
+            Ok( product ) => return Ok( product ),
+            Err( _ ) => return Err( "Failed to render document" )
         };
-
-        match File::create( server.config().cache_directory().to_owned() + &format!( "/{}.html", uuid ) ) {
-            Ok( mut file ) => match file.write_all( product.as_bytes() ){
-                Ok( _ ) => return Response::create( 200, "text/html", &product ),
-                Err( _ ) => return Response::create( 500, "text/plain", "Internal server error: Failed to create cached article" )
-            },
-            Err( _ ) => return Response::create( 500, "text/plain", "Internal server error: Failed to create cached article" )
-        };
-    }
-
-    pub fn filename( &self ) -> &str {
-        &self.filename
     }
 
     pub fn category( &self ) -> &str {
-        match &self.category {
-            Some( category ) => category,
-            None => ""
-        }
+        &self.category
     }
 
     pub fn document_text( &self ) -> &str {
-        match &self.document_text {
-            Some( text ) => text,
-            None => ""
-        }
+        &self.document_text
     }
 }
 
 impl Newsgen {
-    pub fn new() -> Newsgen {
+    pub fn new( cache_size: usize ) -> Newsgen {
         Newsgen {
-            index: HashMap::new()
+            cache: LruCache::new( cache_size )
         }
     }
 
-    fn get_filename_to_uuid_index( &self ) -> HashMap< String, String > {
-        let mut result: HashMap< String, String > = HashMap::new();
-
-        for( uuid, document ) in &self.index {
-            result.insert( document.filename().to_owned(), uuid.to_owned() );
-        }
-
-        result
-    }
-
-    fn build_index( &mut self, config: &Config ) -> io::Result< () > {
-        let original_uuid_index = self.get_filename_to_uuid_index();
-
-        self.index.clear();
-
-        let listing = self.get_dir_list( config )?;
-
-        // Build index HashMap using this directory
-        for mut document in listing {
-            self.index.insert( match original_uuid_index.get( document.filename() ) {
-                Some( existing_uuid ) => existing_uuid.to_owned(),
-                None => format!( "{}", Uuid::new_v4() )
-            }, document );
-        }
-
-        // Save index
-        let mut file = File::create( config.cache_directory().to_owned() + "/ngindex.bin" )?;
-        match bincode::serialize_into( &mut file, &self.index ) {
-            Ok( _ ) => Ok( () ),
-            Err( err ) => return Err( io::Error::new( io::ErrorKind::Other, format!( "{}", err ) ) )
-        }
-    }
-
-    fn get_dir_list( &self, config: &Config ) -> io::Result< Vec< Document > > {
+    fn get_dir_list( config: &Config ) -> io::Result< Vec< FileIndex > > {
         let mut result = vec![];
         let directory = fs::read_dir( config.newsgen_directory() )?;
 
@@ -191,200 +193,162 @@ impl Newsgen {
             let entry = entry?;
             let metadata = entry.metadata()?;
             if metadata.is_file() {
-                result.push( Document::new( &entry.path().to_string_lossy(), metadata.modified()? ) );
+                result.push( FileIndex::new( entry.path().to_string_lossy().to_string(), metadata.modified()? ) );
             }
         }
 
         Ok( result )
     }
 
-    fn document_equivalent( &self, document: &Document ) -> bool {
-        for ( ref _uuid, ref needle ) in self.index.iter() {
-            if document == *needle {
-                return true
-            }
+    fn load_cache_from_file( &mut self, config: &Config ) -> io::Result< () > {
+        let file = File::open( config.cache_directory().to_owned() + "/ngcache.bin" )?;
+        let vec: Vec< ( CacheKey, String ) > = match bincode::deserialize_from( file ) {
+            Ok( product ) => product,
+            Err( _ ) => return Ok( () )
+        };
+
+        for ( cachekey, string ) in vec {
+            self.cache.insert( cachekey, string );
         }
 
-        false
+        Ok( () )
     }
 
-    fn get_sorted_categories_list( &self ) -> HashMap< String, Vec< TocData > > {
-        let mut result: HashMap< String, Vec< TocData > > = HashMap::new();
+    fn save_cache_to_file( &mut self, config: &Config ) -> io::Result< () > {
+        let file = File::create( config.cache_directory().to_owned() + "/ngcache.bin" )?;
+        let mut vec: Vec< ( CacheKey, String ) > = Vec::new();
 
-        for ( uuid, document ) in &self.index {
+        while let Some( ( cachekey, value ) ) = self.cache.remove_lru() {
+            vec.push( ( cachekey, value ) );
+        }
+
+        match bincode::serialize_into( &file, &vec ) {
+            Ok( _ ) => Ok( () ),
+            Err( _ ) => Err( io::Error::new( io::ErrorKind::Other, "" ) )
+        }
+    }
+
+    fn sort_toc_data<'a>( &self, data: &'a Vec< Document > ) -> HashMap< String, Vec< &'a Document > > {
+        let mut result: HashMap< String, Vec< &Document > > = HashMap::new();
+
+        for document in data {
             let mut vec = result.entry( document.category().to_owned() ).or_insert( Vec::new() );
 
-            vec.push( TocData { document: &document, uuid: uuid.to_owned() } );
+            vec.push( &document );
         }
 
         result
     }
 
-    fn rebuild_toc( &mut self, server: &DynamicContentServer ) -> Response {
-        println!( "rebuilding toc and generating articles" );
+    fn generate_toc( &self, server: &DynamicContentServer, dir_list: &Vec< FileIndex > ) -> Result< String, &'static str > {
+        println!( "rebuilding toc" );
 
-        match self.build_index( server.config() ) {
-            Ok( _ ) => {
-
-                // Load all documents and parse headers + content
-                for ( uuid, document ) in &mut self.index {
-                    let response = document.generate_and_respond( &uuid, server );
-                    if response.code() == 500 {
-                        return response
-                    }
-                }
-
-                // Generate TOC
-                let result = match server.templates().render( "newsgen/toc", &self.get_sorted_categories_list() ) {
-                    Ok( result ) => result,
-                    Err( msg ) => {
-                        println!( "handlebars: {}", msg );
-                        return Response::create( 500, "text/plain", "Internal server error: Failed to render document" )
-                    }
-                };
-
-                // Save TOC to file
-                match File::create( server.config().cache_directory().to_owned() + "/toc.html" ) {
-                    Ok( mut file ) => match file.write_all( result.as_bytes() ) {
-                        Ok( _ ) => return Response::create( 200, "text/html", &result ),
-                        Err( _ ) => return Response::create( 500, "text/plain", "Internal server error: Failed to write toc.html" )
-                    },
-                    Err( _ ) => return Response::create( 500, "text/plain", "Internal server error: Failed to create toc.html" )
-                }
-
-            },
-            Err( _ ) => Response::create( 500, "text/plain", "Internal server error: Failed to create ngindex.bin" )
+        let mut documents: Vec< Document > = Vec::new();
+        for dir in dir_list {
+            documents.push( match Document::from_file( dir.filename() ) {
+                Ok( result ) => result,
+                Err( _ ) => return Err( "Failed to open document" )
+            } );
         }
+
+        let result = match server.templates().render( "newsgen/toc", &self.sort_toc_data( &documents ) ) {
+            Ok( result ) => result,
+            Err( msg ) => { println!( "{}", msg ); return Err( "Failed to render document" ) }
+        };
+
+        Ok( result )
     }
 
-    pub fn respond_individual( uuid: &str, server: &DynamicContentServer ) -> Response {
-        // First thing - open file. If the file can't be opened, return 404
-        let file = match File::open( server.config().cache_directory().to_owned() + "/ngindex.bin" ) {
-            Ok( file ) => file,
-            Err( error ) => match error.kind() {
-                ErrorKind::NotFound => return Response::create( 404, "text/plain", "Not found" ),
-                _ => return Response::create( 500, "text/plain", "Internal server error: Could not open ngindex.bin" )
-            }
-        };
-
-        let mut newsgen = Newsgen::new();
-
-        // Load index
-        newsgen.index = match bincode::deserialize_from( file ) {
-            Ok( product ) => product,
-            Err( _ ) => return Response::create( 500, "text/plain", "Internal server error: Failed to read ngindex.bin" )
-        };
-
-        // If item isn't in index, return 404
-        let filename = match newsgen.index.get( uuid ) {
-            Some( document ) => document.filename().to_owned(),
-            None => return Response::create( 404, "text/plain", "Not found" )
-        };
-
-        let path = Path::new( &filename );
-        if !path.exists() {
-            // If the file behind the document doesn't exist, delete its entry and return 404
-            newsgen.index.remove( uuid );
-
-            // Save the new state of newsgen.index and write 404
-            match File::create( server.config().cache_directory().to_owned() + "/ngindex.bin" ) {
-                Ok( mut file ) => match bincode::serialize_into( &mut file, &newsgen.index ) {
-                    Ok( _ ) => return Response::create( 404, "text/plain", "Not found" ),
-                    Err( _ ) => return Response::create( 500, "text/plain", "Internal server error: Failed to write ngindex.bin" )
-                },
-                Err( _ ) => return Response::create( 500, "text/plain", "Internal server error: Failed to create ngindex.bin" )
-            };
+    pub fn respond_individual( filename: &str, server: &DynamicContentServer ) -> Response {
+        let full = server.config().newsgen_directory().to_owned() + &format!( "/{}", filename.replace( "..", "" ) );
+        let path = Path::new( &full );
+        if !path.exists() || !path.is_file() {
+            return Response::create( 404, "text/plain", "Not found" );
         }
 
-        // The file exists but its mtime may have been updated
-        let most_current_document = Document::new(
-            &filename,
-            match path.metadata() {
-                Ok( metadata ) => match metadata.modified() {
-                    Ok( mtime ) => mtime,
-                    Err( _ ) => return Response::create( 500, "text/plain", "Internal server error: Could not read mtime for file" )
+        // Check and see if it's in the cache first!
+        let mut newsgen = Newsgen::new( server.config().newsgen_lru_cache_size() );
+        match newsgen.load_cache_from_file( server.config() ) {
+            Ok( _ ) => {},
+            Err( error ) => match error.kind() {
+                ErrorKind::NotFound => match newsgen.save_cache_to_file( server.config() ) {
+                    Ok( _ ) => (),
+                    Err( _ ) => return Response::create( 500, "text/plain", "Internal server error: Could not create cache file" )
                 },
-                Err( _ ) => return Response::create( 500, "text/plain", "Internal server error: Could not read mtime for file" )
+                _ => return Response::create( 500, "text/plain", "Internal server error: Could not open cache file" )
             }
+        };
+
+        let key = CacheKey::Document(
+            FileIndex::new( full.to_owned(), match path.metadata() {
+                Ok( metadata ) => match metadata.modified() {
+                    Ok( modified ) => modified,
+                    Err( _ ) => return Response::create( 500, "text/plain", "Internal server error: Cannot read path metadata" )
+                },
+                Err( _ ) => return Response::create( 500, "text/plain", "Internal server error: Cannot read path metadata" )
+            } )
         );
 
-        // If path mtime is disparate from recorded mtime, rewrite the file
-        if *newsgen.index.get( uuid ).expect( "This should never happen" ) != most_current_document {
-            println!( "This article needs to be updated" );
+        match newsgen.cache.get_mut( &key ) {
+            Some( result ) => return Response::create( 200, "text/html", result ),
+            None => { /* Must regenerate */ }
+        };
 
-            // Reinsert item
-            newsgen.index.insert( uuid.to_owned(), most_current_document );
+        println!( "regenerating document" );
 
-            // Update ngindex.bin
-            match File::create( server.config().cache_directory().to_owned() + "/ngindex.bin" ) {
-                Ok( mut file ) => match bincode::serialize_into( &mut file, &newsgen.index ) {
-                    Ok( _ ) => {},
-                    Err( _ ) => return Response::create( 500, "text/plain", "Internal server error: Failed to write ngindex.bin" )
-                },
-                Err( _ ) => return Response::create( 500, "text/plain", "Internal server error: Failed to create ngindex.bin" )
-            };
+        let mut document = match Document::from_file( &full ) {
+            Ok( document ) => document,
+            Err( _ ) => return Response::create( 500, "text/plain", "Internal server error: Cannot open markdown document" )
+        };
 
-            // Regenerate and serve document
-            let document = newsgen.index.get_mut( uuid ).expect( "This should never happen" );
-            return document.generate_and_respond( uuid, server );
-        }
+        match document.generate( server ) {
+            Ok( result ) => {
+                newsgen.cache.insert( key, result.to_owned() );
 
-        // If path mtime and document are equivalent, but there was never a file generated, generate the file
-        match utility::get_file_string( &( server.config().cache_directory().to_owned() + &format!( "/{}.html", uuid ) ) ) {
-            Ok( text ) => Response::create( 200, "text/html", &text ),
-            Err( error ) => match error.kind() {
-                ErrorKind::NotFound => {
-                    println!( "Generating new html cache from unchanged mtime" );
-                    return newsgen.index.get_mut( uuid ).expect( "This should never happen" ).generate_and_respond( uuid, server )
-                },
-                _ => return Response::create( 500, "text/plain", "Internal server error: Failed to open generated cache file" )
-            }
+                match newsgen.save_cache_to_file( server.config() ) {
+                    Ok( _ ) => Response::create( 200, "text/html", &result ),
+                    Err( _ ) => Response::create( 500, "text/plain", "Internal server error: Failed to save cache file" )
+                }
+            },
+            Err( error ) => Response::create( 500, "text/plain", &format!( "Internal server error: {}", error ) )
         }
     }
 
     pub fn respond( server: &DynamicContentServer ) -> Response {
-        let mut newsgen = Newsgen::new();
+        let dir_list = match Newsgen::get_dir_list( server.config() ) {
+            Ok( list ) => list,
+            Err( _ ) => return Response::create( 500, "text/plain", "Internal server error: Unable to get directory list" )
+        };
 
-        // Open cache/ngindex.bin
-        match File::open( server.config().cache_directory().to_owned() + "/ngindex.bin" ) {
-            Ok( file ) => {
-                newsgen.index = match bincode::deserialize_from( file ) {
-                    Ok( product ) => product,
-                    Err( _ ) => return Response::create( 500, "text/plain", "Internal server error: Failed to read ngindex.bin" )
-                };
-            },
+        let mut newsgen = Newsgen::new( server.config().newsgen_lru_cache_size() );
+        match newsgen.load_cache_from_file( server.config() ) {
+            Ok( _ ) => {},
             Err( error ) => match error.kind() {
-                ErrorKind::NotFound => return newsgen.rebuild_toc( server ),
-                _ => return Response::create( 500, "text/plain", "Internal server error: Failed to create ngindex.bin" )
+                ErrorKind::NotFound => match newsgen.save_cache_to_file( server.config() ) {
+                    Ok( _ ) => (),
+                    Err( _ ) => return Response::create( 500, "text/plain", "Internal server error: Could not create cache file" )
+                },
+                _ => return Response::create( 500, "text/plain", "Internal server error: Could not open cache file" )
             }
         };
 
-        // newsgen.index should be either created or loaded after this point
-        // Get directory listing
-        let listing = match newsgen.get_dir_list( server.config() ) {
-            Ok( listing ) => listing,
-            Err( _ ) => return Response::create( 500, "text/plain", "Internal server error: Failed to get directory listing for newsgen" )
+        let aggregate = CacheKey::Aggregate( dir_list );
+        match newsgen.cache.get_mut( &aggregate ) {
+            Some( cached_rendering ) => return Response::create( 200, "text/html", cached_rendering ),
+            None => { /* Must Regenerate */ }
         };
 
-        // If directory listing count is different from hashmap count, then we know we need to regenerate the index and html together
-        if newsgen.index.len() != listing.len() {
-            println!( "newsgen.index {} listing {}", newsgen.index.len(), listing.len() );
-            return newsgen.rebuild_toc( server )
-        }
+        // Insert, generate, and store
+        match newsgen.generate_toc( server, aggregate.unwrap_aggregate() ) {
+            Ok( rendered_template ) => {
+                newsgen.cache.insert( aggregate, rendered_template.to_owned() );
 
-        // The numbers of items are equivalent, so verify items in this listing are equivalent to their items in the hashmap
-        for needle in listing {
-            if !newsgen.document_equivalent( &needle ) {
-                // Stop everything and rebuild toc
-                println!( "Document was not equivalent" );
-                return newsgen.rebuild_toc( server )
-            }
-        }
-
-        // If you got here then rebuild was not required - open up toc.html and serve it
-        match utility::get_file_string( &( server.config().cache_directory().to_owned() + "/toc.html" ) ) {
-            Ok( text ) => return Response::create( 200, "text/html", &text ),
-            Err( _ ) => return Response::create( 500, "text/plain", "Internal server error: Failed to open <cache directory>/toc.html" )
+                match newsgen.save_cache_to_file( server.config() ) {
+                    Ok( _ ) => Response::create( 200, "text/html", &rendered_template ),
+                    Err( _ ) => Response::create( 500, "text/plain", "Internal server error: Failed to save cache file" )
+                }
+            },
+            Err( message ) => Response::create( 500, "text/plain", &format!( "Internal server error: {}", message ) )
         }
     }
 }

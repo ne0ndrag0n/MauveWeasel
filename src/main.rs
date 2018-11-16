@@ -3,11 +3,13 @@
 
 #[macro_use] extern crate serde_derive;
 #[macro_use] extern crate serde_json;
+extern crate lru_cache;
 extern crate comrak;
 extern crate chrono;
 extern crate bincode;
 extern crate toml;
 extern crate uuid;
+extern crate serde;
 extern crate serde_urlencoded;
 extern crate handlebars;
 
