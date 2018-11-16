@@ -12,11 +12,12 @@ use mauveweasel::http::Response;
 use mauveweasel::options::Config;
 use mauveweasel::server::DynamicContentServer;
 use mauveweasel::utility;
+use mauveweasel::tools::uuid_keystore;
 use lru_cache::LruCache;
 
 #[derive(Serialize,Deserialize)]
 pub struct Document {
-    filename: String,
+    uuid: String,
     category: String,
     slug: String,
     pubdate: String,
@@ -109,7 +110,7 @@ pub struct Newsgen {
 impl Document {
     pub fn new() -> Document {
         Document {
-            filename: String::new(),
+            uuid: String::new(),
             category: String::new(),
             slug: String::new(),
             pubdate: String::new(),
@@ -120,11 +121,11 @@ impl Document {
         }
     }
 
-    pub fn from_file( path: &str ) -> io::Result< Document > {
+    pub fn from_file( path: &str, config: &Config ) -> io::Result< Document > {
         let mut result = Document::new();
-        result.filename = match Path::new( path ).file_name() {
-            Some( path ) => path.to_string_lossy().to_string(),
-            None => return Err( io::Error::new( io::ErrorKind::Other, "" ) )
+        result.uuid = match uuid_keystore::get_or_associate_uuid( path, config ) {
+            Ok( uuid ) => uuid,
+            Err( _ ) => return Err( io::Error::new( io::ErrorKind::Other, "" ) )
         };
 
         let file = utility::get_file_string( path )?;
@@ -245,7 +246,7 @@ impl Newsgen {
 
         let mut documents: Vec< Document > = Vec::new();
         for dir in dir_list {
-            documents.push( match Document::from_file( dir.filename() ) {
+            documents.push( match Document::from_file( dir.filename(), server.config() ) {
                 Ok( result ) => result,
                 Err( _ ) => return Err( "Failed to open document" )
             } );
@@ -259,8 +260,15 @@ impl Newsgen {
         Ok( result )
     }
 
-    pub fn respond_individual( filename: &str, server: &DynamicContentServer ) -> Response {
-        let full = server.config().newsgen_directory().to_owned() + &format!( "/{}", filename.replace( "..", "" ) );
+    pub fn respond_individual( uuid: &str, server: &DynamicContentServer ) -> Response {
+        let full = match uuid_keystore::get_value( uuid, server.config() ) {
+            Ok( result ) => match result {
+                Some( filename ) => filename,
+                None => return Response::create( 404, "text/plain", "Not found" )
+            },
+            Err( _ ) => return Response::create( 500, "text/plain", "Internal server error: Could not open uuid keystore" )
+        };
+
         let path = Path::new( &full );
         if !path.exists() || !path.is_file() {
             return Response::create( 404, "text/plain", "Not found" );
@@ -296,7 +304,7 @@ impl Newsgen {
 
         println!( "regenerating document" );
 
-        let mut document = match Document::from_file( &full ) {
+        let mut document = match Document::from_file( &full, server.config() ) {
             Ok( document ) => document,
             Err( _ ) => return Response::create( 500, "text/plain", "Internal server error: Cannot open markdown document" )
         };

@@ -18,16 +18,16 @@ fn invert_map( orig: &Keystore ) -> HashMap< &str, &str > {
 }
 
 fn load_store( config: &Config ) -> io::Result< Keystore > {
-    let file = OpenOptions::new().read( true ).create( true ).open( format!( "{}/keystore.bin", config.data_directory() ) )?;
+    let file = OpenOptions::new().read( true ).write( true ).create( true ).open( format!( "{}/keystore.bin", config.data_directory() ) )?;
 
     match bincode::deserialize_from( file ) {
         Ok( keystore ) => Ok( keystore ),
-        Err( _ ) => Err( io::Error::new( io::ErrorKind::Other, "" ) )
+        Err( er ) => { println!( "{:?}", er ); Ok( Keystore::new() ) }
     }
 }
 
 fn save_store( keystore: &Keystore, config: &Config ) -> io::Result< () > {
-    let file = OpenOptions::new().write( true ).create( true ).open( format!( "{}/keystore.bin", config.data_directory() ) )?;
+    let file = OpenOptions::new().read( true ).write( true ).create( true ).open( format!( "{}/keystore.bin", config.data_directory() ) )?;
 
     match bincode::serialize_into( &file, keystore ) {
         Ok( _ ) => Ok( () ),
