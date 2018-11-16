@@ -9,7 +9,8 @@ pub struct Config {
     cookiejar_directory: Option< String >,
     cache_directory: Option< String >,
     newsgen_directory: Option< String >,
-    newsgen_lru_cache_size: Option< usize >
+    newsgen_lru_cache_size: Option< usize >,
+    data_directory: Option< String >
 }
 
 impl Config {
@@ -81,6 +82,13 @@ impl Config {
         match self.newsgen_lru_cache_size {
             Some( val ) => val,
             None => 8
+        }
+    }
+
+    pub fn data_directory( &self ) -> &str {
+        match self.data_directory {
+            Some( ref val ) => &val,
+            None => "./data"
         }
     }
 
