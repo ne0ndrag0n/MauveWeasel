@@ -18,6 +18,7 @@
     <link rel="apple-touch-icon" href="icon.png">
 
     <link href="https://fonts.googleapis.com/css?family=Roboto:400,900" rel="stylesheet">
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.2.0/css/all.css" integrity="sha384-hWVjflwFxL6sNzntih27bfxkr27PmbbK/iSvJ+a4+0owXq79v+lsFkW54bOGbiDQ" crossorigin="anonymous">
     <link rel="stylesheet" href="/css/normalize.css">
     <link rel="stylesheet" href="/css/main.css">
     <link rel="stylesheet" href="/css/news.css">
@@ -34,8 +35,11 @@
     <main class="news">
       <div class="news-block">
         <div class="left-column">
-          <h2>Technical Articles</h2>
-          <h4>ne0ndrag0n's project progress, tutorials, and technical opinions.</h4>
+            <i class="fas fa-drafting-compass"></i>
+            <div>
+              <h2>Technical Articles</h2>
+              <span>ne0ndrag0n's technical opinions.</span>
+            </div>
         </div>
         <div class="right-column">
           {{#each this.technical}}
@@ -51,8 +55,11 @@
       </div>
       <div class="news-block">
         <div class="left-column">
-          <h2>The Real World</h2>
-          <h4>Political opinions and philosophy.</h4>
+            <i class="fas fa-globe"></i>
+            <div>
+              <h2>The Real World</h2>
+              <span>Political opinions and philosophy.</span>
+            </div>
         </div>
         <div class="right-column">
           {{#each this.realworld}}
