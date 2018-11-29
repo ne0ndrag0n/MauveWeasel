@@ -7,3 +7,4 @@ pub mod http;
 pub mod cookie;
 pub mod helpers;
 pub mod tools;
+pub mod fdo;

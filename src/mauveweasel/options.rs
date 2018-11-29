@@ -2,7 +2,6 @@
 pub struct Config {
     ip: Option< String >,
     port: Option< u16 >,
-    postbox_directory: Option< String >,
     max_request_size: Option< u64 >,
     templates_directory: Option< String >,
     reverse_proxy_prefix: Option< String >,
@@ -26,13 +25,6 @@ impl Config {
         match self.port {
             Some( val ) => val,
             None => 3000
-        }
-    }
-
-    pub fn postbox_directory( &self ) -> &str {
-        match self.postbox_directory {
-            Some( ref val ) => &val,
-            None => "./postbox"
         }
     }
 
