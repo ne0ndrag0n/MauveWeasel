@@ -9,6 +9,7 @@ pub struct Config {
     cache_directory: Option< String >,
     newsgen_directory: Option< String >,
     newsgen_lru_cache_size: Option< usize >,
+    fdo_cache_size: Option< usize >,
     data_directory: Option< String >
 }
 
@@ -74,6 +75,13 @@ impl Config {
         match self.newsgen_lru_cache_size {
             Some( val ) => val,
             None => 8
+        }
+    }
+
+    pub fn fdo_cache_size( &self ) -> usize {
+        match self.fdo_cache_size {
+            Some( val ) => val,
+            None => 16
         }
     }
 
