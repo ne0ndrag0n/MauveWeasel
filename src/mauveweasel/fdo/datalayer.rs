@@ -1,87 +1,48 @@
-use mauveweasel::fdo::user::User;
 use mauveweasel::options::Config;
 use std::io;
-use std::fs::File;
+use std::fs::{ File, OpenOptions, remove_file };
+use serde::ser::Serialize;
+use serde::de::Deserialize;
 use bincode;
-use lru_cache::LruCache;
 
-pub trait FdoObject<'a> {
-    fn type_key() -> &'static str;
+pub trait FdoObject {
+    fn key() -> &'static str where Self: Sized;
 
-    fn create( self, fdo: &'a mut FileDataLayer ) -> io::Result< &'a mut Self >;
+    fn uuid( &self ) -> &str;
 
-    fn retrieve( uuid: String, fdo: &'a mut FileDataLayer ) -> io::Result< &'a mut Self >;
+    fn retrieve( uuid: &str, config: &Config ) -> io::Result< Self > where Self: Sized;
 
-    fn update( &self, fdo: &mut FileDataLayer ) -> io::Result< () >;
+    fn save( &self, config: &Config ) -> io::Result< () >;
 
-    fn delete( self, fdo: &mut FileDataLayer ) -> io::Result< () >;
+    fn delete( &self, config: &Config ) -> io::Result< () >;
 }
 
-#[derive(Serialize,Deserialize)]
-pub enum FdoStoredObject {
-    User( User ),
-    Other
+fn delete_file( key: &'static str, uuid: &str, config: &Config ) -> io::Result< () > {
+    remove_file( format!( "{}/{}/{}.bin", config.data_directory(), key, uuid ) )
 }
 
-impl FdoStoredObject {
-
-    pub fn as_user( &self ) -> &User {
-        match self {
-            FdoStoredObject::User( user ) => &user,
-            _ => panic!( "Type mismatch" )
-        }
-    }
-
-    pub fn as_user_mut( &mut self ) -> &mut User {
-        match self {
-            FdoStoredObject::User( user ) => user,
-            _ => panic!( "Type mismatch" )
-        }
-    }
-
+fn open_file( key: &'static str, uuid: &str, config: &Config ) -> io::Result< File > {
+    OpenOptions::new().read( true ).write( true ).create( true ).open( format!( "{}/{}/{}.bin", config.data_directory(), key, uuid ) )
 }
 
-pub struct FileDataLayer<'a> {
-    cache: LruCache< String, FdoStoredObject >,
-    data_directory: &'a str
+pub fn save< 'de, FdoDerivative >( obj: &FdoDerivative, config: &Config ) -> io::Result< () > where FdoDerivative: FdoObject + Serialize + Deserialize<'de> {
+    let file = open_file( FdoDerivative::key(), obj.uuid(), config )?;
+
+    match bincode::serialize_into( file, obj ) {
+        Ok( _ ) => Ok( () ),
+        Err( _ ) => Err( io::Error::new( io::ErrorKind::Other, "" ) )
+    }
 }
 
-impl<'a> FileDataLayer<'a> {
+pub fn load< FdoDerivative >( uuid: &str, config: &Config ) -> io::Result< FdoDerivative > where for<'de> FdoDerivative: FdoObject + Serialize + Deserialize<'de> {
+    let file = open_file( FdoDerivative::key(), uuid, config )?;
 
-    pub fn new( config: &Config ) -> FileDataLayer {
-        FileDataLayer {
-            cache: LruCache::new( config.newsgen_lru_cache_size() ),
-            data_directory: config.data_directory()
-        }
+    match bincode::deserialize_from( file ) {
+        Ok( result ) => Ok( result ),
+        Err( _ ) => Err( io::Error::new( io::ErrorKind::Other, "" ) )
     }
+}
 
-    pub fn create( &mut self, uuid: String, key: &'static str, object: FdoStoredObject ) -> io::Result< &mut FdoStoredObject > {
-        // Save file
-        match bincode::serialize_into( File::open( format!( "{}/{}/{}.bin", self.data_directory, key, uuid ) )?, &object ) {
-            Ok( _ ) => {},
-            Err( _ ) => return Err( io::Error::new( io::ErrorKind::Other, "" ) )
-        };
-
-        // Insert into cache
-        let uuid_copy = uuid.to_owned();
-        self.cache.insert( uuid, object );
-        Ok( self.cache.get_mut( &uuid_copy ).unwrap() )
-    }
-
-    pub fn retrieve( &mut self, uuid: String, key: &'static str ) -> io::Result< &mut FdoStoredObject > {
-        if self.cache.contains_key( &uuid ) {
-            return Ok( self.cache.get_mut( &uuid ).unwrap() )
-        }
-
-        // Gotta load the file off disk
-        let product = match bincode::deserialize_from( File::open( format!( "{}/{}/{}.bin", self.data_directory, key, uuid ) )? ) {
-            Ok( product ) => product,
-            Err( _ ) => return Err( io::Error::new( io::ErrorKind::Other, "" ) )
-        };
-
-        let uuid_copy = uuid.to_owned();
-        self.cache.insert( uuid, product );
-        Ok( self.cache.get_mut( &uuid_copy ).unwrap() )
-    }
-
+pub fn remove< FdoDerivative >( obj: &FdoDerivative, config: &Config ) -> io::Result< () > where FdoDerivative: FdoObject {
+    delete_file( FdoDerivative::key(), obj.uuid(), config )
 }

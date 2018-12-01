@@ -1,6 +1,8 @@
+use mauveweasel::options::Config;
+use mauveweasel::fdo::datalayer;
+use mauveweasel::fdo::datalayer::FdoObject;
 use uuid::Uuid;
 use std::io;
-use mauveweasel::fdo::datalayer::{ FileDataLayer, FdoStoredObject, FdoObject };
 
 #[derive(Serialize,Deserialize)]
 pub struct User {
@@ -23,34 +25,24 @@ impl User {
 
 }
 
-impl<'a> FdoObject<'a> for User {
-
-    fn type_key() -> &'static str {
+impl FdoObject for User {
+    fn key() -> &'static str where User: Sized {
         "user"
     }
 
-    fn create( self, fdo: &'a mut FileDataLayer ) -> io::Result< &'a mut User > {
-        Ok(
-            fdo.create(
-                self.uuid().to_owned(),
-                Self::type_key(),
-                FdoStoredObject::User( self )
-            )?.as_user_mut()
-        )
+    fn uuid( &self ) -> &str {
+        &self.uuid
     }
 
-    fn retrieve( uuid: String, fdo: &'a mut FileDataLayer ) -> io::Result< &'a mut User > {
-        Ok(
-            fdo.retrieve( uuid, Self::type_key() )?.as_user_mut()
-        )
+    fn retrieve( uuid: &str, config: &Config ) -> io::Result< User > where User: Sized {
+        datalayer::load( uuid, config )
     }
 
-    fn update( &self, fdo: &mut FileDataLayer ) -> io::Result< () > {
-        Err( std::io::Error::new(std::io::ErrorKind::Other, "oh no!" ) )
+    fn save( &self, config: &Config ) -> io::Result< () > {
+        datalayer::save( self, config )
     }
 
-    fn delete( self, fdo: &mut FileDataLayer ) -> io::Result< () > {
-        Err( std::io::Error::new(std::io::ErrorKind::Other, "oh no!" ) )
+    fn delete( &self, config: &Config ) -> io::Result< () > {
+        datalayer::remove( self, config )
     }
-
 }
